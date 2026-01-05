@@ -535,28 +535,55 @@
             const zoomGroup = document.getElementById('zoomGroup');
 
             if (zoomLevel === 0) {
-                // No zoom
-                zoomGroup.style.transform = 'translate(0, 0) scale(1)';
+                // No zoom, no rotation
+                zoomGroup.style.transform = 'rotate(0deg) scale(1)';
             } else if (zoomLevel === 1) {
                 // Zoom to quarter/trimester
                 const groups = getCurrentGroups();
                 const groupKey = Object.keys(groups)[focusPath[0]];
                 const group = groups[groupKey];
 
-                // Calculate zoom to focus on this arc
+                // Calculate mid angle of the segment
+                const totalAngle = viewMode === 'quarter' ? 90 : 120;
+                const midAngle = group.startAngle + (totalAngle / 2);
+
+                // Rotate to center segment at 12 o'clock (0 degrees)
+                const rotation = -midAngle;
+
+                // Scale to zoom in
                 const scale = viewMode === 'quarter' ? 3.5 : 2.8;
-                const angle = group.startAngle + (viewMode === 'quarter' ? 45 : 60);
-                const distance = BASE_RADIUS * 0.4;
 
-                const offset = polarToCartesian(0, 0, distance, angle);
-                const translateX = -offset.x * scale;
-                const translateY = -offset.y * scale;
-
-                zoomGroup.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+                zoomGroup.style.transform = `rotate(${rotation}deg) scale(${scale})`;
             } else if (zoomLevel === 2) {
                 // Zoom to month
-                const scale = 6;
-                zoomGroup.style.transform = `scale(${scale})`;
+                const groups = getCurrentGroups();
+                const groupKey = Object.keys(groups)[focusPath[0]];
+                const group = groups[groupKey];
+                const monthIndex = focusPath[1];
+
+                // Calculate the month's position within the group
+                const numMonths = group.months.length;
+                const totalAngle = viewMode === 'quarter' ? 90 : 120;
+                const degreesPerMonth = totalAngle / numMonths;
+                const monthIndexInGroup = group.months.indexOf(monthIndex);
+                const monthStartAngle = group.startAngle + (monthIndexInGroup * degreesPerMonth);
+                const monthMidAngle = monthStartAngle + (degreesPerMonth / 2);
+
+                // Rotate to center month at 12 o'clock
+                const rotation = -monthMidAngle;
+
+                // Scale to zoom in on month
+                const scale = 8;
+
+                zoomGroup.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+            } else if (zoomLevel === 3) {
+                // Zoom to week (placeholder)
+                const scale = 15;
+                zoomGroup.style.transform = `rotate(0deg) scale(${scale})`;
+            } else if (zoomLevel === 4) {
+                // Zoom to day (placeholder)
+                const scale = 30;
+                zoomGroup.style.transform = `rotate(0deg) scale(${scale})`;
             }
         }
 
@@ -596,18 +623,65 @@
             zoomTo(0, []);
         }
 
+        // Get current date segments for smart navigation
+        function getCurrentDateSegments() {
+            const now = new Date();
+            const month = now.getMonth(); // 0-11 (0 = January)
+            const dayOfMonth = now.getDate(); // 1-31
+
+            // Find which group (quarter/trimester) this month belongs to
+            const groupKey = getGroupForMonth(month);
+            const groups = getCurrentGroups();
+            const groupIndex = Object.keys(groups).indexOf(groupKey);
+
+            // Calculate day of year
+            let dayOfYear = 0;
+            for (let i = 0; i < month; i++) {
+                dayOfYear += monthDays[i];
+            }
+            dayOfYear += dayOfMonth;
+
+            // Calculate week number (simplified - week 1 starts Jan 1)
+            const weekNum = Math.ceil(dayOfYear / 7);
+
+            return {
+                groupIndex,     // 0-3 for quarters, 0-2 for trimesters
+                month,          // 0-11
+                weekNum,        // 1-52
+                dayOfMonth,     // 1-31
+                dayOfYear       // 1-365
+            };
+        }
+
         // Event listeners
         document.getElementById('quarterBtn').addEventListener('click', () => switchMode('quarter'));
         document.getElementById('trimesterBtn').addEventListener('click', () => switchMode('trimester'));
 
         document.querySelectorAll('.zoom-level').forEach(el => {
             el.addEventListener('click', () => {
-                const level = parseInt(el.dataset.level);
-                if (level < zoomLevel) {
+                const targetLevel = parseInt(el.dataset.level);
+
+                if (targetLevel < zoomLevel) {
                     // Zoom out
-                    zoomTo(level, focusPath.slice(0, level));
+                    zoomTo(targetLevel, focusPath.slice(0, targetLevel));
+                } else if (targetLevel > zoomLevel) {
+                    // Zoom in - use current date to determine path
+                    const current = getCurrentDateSegments();
+
+                    if (targetLevel === 1) {
+                        // Zoom to current quarter/trimester
+                        zoomTo(1, [current.groupIndex]);
+                    } else if (targetLevel === 2) {
+                        // Zoom to current month
+                        zoomTo(2, [current.groupIndex, current.month]);
+                    } else if (targetLevel === 3) {
+                        // Zoom to current week
+                        zoomTo(3, [current.groupIndex, current.month, current.weekNum]);
+                    } else if (targetLevel === 4) {
+                        // Zoom to current day
+                        zoomTo(4, [current.groupIndex, current.month, current.weekNum, current.dayOfMonth]);
+                    }
                 }
-                // Can't jump forward without context
             });
         });
 
