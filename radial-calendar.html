@@ -19,97 +19,183 @@
             justify-content: center;
             align-items: center;
             color: #333;
-            padding: 20px;
+            overflow: hidden;
         }
 
-        .container {
-            text-align: center;
+        .app-container {
             position: relative;
-        }
-
-        h1 {
-            color: white;
-            margin-bottom: 20px;
-            font-size: 2.5em;
-            font-weight: 300;
-            letter-spacing: 2px;
-        }
-
-        .controls {
-            margin-bottom: 20px;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
         }
 
-        .toggle-container {
-            background: white;
-            padding: 4px;
+        /* Zoom Level Slider */
+        .zoom-slider {
+            position: fixed;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 15px;
+            border-radius: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .zoom-levels {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .zoom-level {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.4;
+        }
+
+        .zoom-level.active {
+            opacity: 1;
+        }
+
+        .zoom-level:hover {
+            opacity: 0.7;
+        }
+
+        .zoom-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .zoom-level.active .zoom-dot {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .zoom-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        /* Mode Toggle (Bottom Left) */
+        .mode-toggle {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px;
             border-radius: 25px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             display: inline-flex;
+            z-index: 100;
         }
 
-        .toggle-btn {
-            padding: 10px 24px;
+        .mode-btn {
+            padding: 10px 20px;
             border: none;
             background: transparent;
             border-radius: 20px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             color: #666;
         }
 
-        .toggle-btn.active {
+        .mode-btn.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
 
-        .calendar-wrapper {
-            background: white;
-            border-radius: 50%;
-            padding: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        /* Main Calendar */
+        .calendar-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             position: relative;
-            display: inline-block;
         }
 
         svg {
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            max-height: 1200px;
         }
 
+        #zoomGroup {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: center center;
+        }
+
+        /* Segments */
         .segment {
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: opacity 0.3s ease, fill 0.3s ease;
             stroke: white;
             stroke-width: 2;
         }
 
-        .segment:hover {
+        .segment:hover:not(.faded) {
             opacity: 0.8;
         }
 
+        .segment.faded {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .segment.context {
+            opacity: 0.5;
+        }
+
+        /* Labels */
         .label {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             fill: white;
             pointer-events: none;
             user-select: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .label.faded {
+            opacity: 0.3;
         }
 
         .week-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             fill: white;
             pointer-events: none;
             user-select: none;
         }
 
-        .month-name-label {
-            font-size: 14px;
+        .day-label {
+            font-size: 9px;
+            font-weight: 600;
+            fill: white;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .month-name {
+            font-size: 16px;
             font-weight: 700;
             fill: white;
             pointer-events: none;
@@ -124,43 +210,16 @@
             user-select: none;
         }
 
-        .back-button {
-            background: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s ease;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .back-button.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .back-button:hover {
-            background: #f0f0f0;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Quarter colors */
+        /* Colors */
         .q1-color { fill: #FF6B6B; }
         .q2-color { fill: #4ECDC4; }
         .q3-color { fill: #45B7D1; }
         .q4-color { fill: #FFA07A; }
 
-        /* Trimester colors */
         .t1-color { fill: #FF6B6B; }
         .t2-color { fill: #4ECDC4; }
         .t3-color { fill: #FFA07A; }
 
-        /* Month color variations */
         .month-1 { fill: #FF6B6B; }
         .month-2 { fill: #FF5252; }
         .month-3 { fill: #FF3838; }
@@ -173,62 +232,86 @@
         .month-10 { fill: #FFA07A; }
         .month-11 { fill: #FF8C66; }
         .month-12 { fill: #FF7852; }
+
+        /* Title */
+        .title {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 2em;
+            font-weight: 300;
+            letter-spacing: 2px;
+            z-index: 50;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 id="title">RADIAL CALENDAR 2026</h1>
+    <div class="app-container">
+        <h1 class="title" id="title">RADIAL CALENDAR 2026</h1>
 
-        <div class="controls">
-            <div class="toggle-container">
-                <button class="toggle-btn active" id="quarterBtn">Quarter View</button>
-                <button class="toggle-btn" id="trimesterBtn">Trimester View</button>
+        <!-- Zoom Level Slider -->
+        <div class="zoom-slider">
+            <div class="zoom-levels">
+                <div class="zoom-level active" data-level="0">
+                    <div class="zoom-dot"></div>
+                    <span class="zoom-label">Year</span>
+                </div>
+                <div class="zoom-level" data-level="1">
+                    <div class="zoom-dot"></div>
+                    <span class="zoom-label" id="groupLabel">Quarter</span>
+                </div>
+                <div class="zoom-level" data-level="2">
+                    <div class="zoom-dot"></div>
+                    <span class="zoom-label">Month</span>
+                </div>
+                <div class="zoom-level" data-level="3">
+                    <div class="zoom-dot"></div>
+                    <span class="zoom-label">Week</span>
+                </div>
+                <div class="zoom-level" data-level="4">
+                    <div class="zoom-dot"></div>
+                    <span class="zoom-label">Day</span>
+                </div>
             </div>
-            <button class="back-button" id="backButton">← Back</button>
         </div>
 
-        <div class="calendar-wrapper">
-            <svg id="calendar" width="700" height="700" viewBox="0 0 700 700">
-                <!-- SVG content will be dynamically generated -->
+        <!-- Mode Toggle -->
+        <div class="mode-toggle">
+            <button class="mode-btn active" id="quarterBtn">Quarter</button>
+            <button class="mode-btn" id="trimesterBtn">Trimester</button>
+        </div>
+
+        <!-- Calendar SVG -->
+        <div class="calendar-container">
+            <svg id="calendar" viewBox="0 0 1000 1000">
+                <g id="zoomGroup">
+                    <!-- Content will be dynamically generated -->
+                </g>
             </svg>
         </div>
     </div>
 
     <script>
-        // Application state
+        // ===== CONFIGURATION =====
         const YEAR = 2026;
-        let viewMode = 'quarter'; // 'quarter' or 'trimester'
-        let currentView = 'year'; // 'year' or 'group'
-        let currentGroup = null; // which quarter/trimester we're viewing
-        let currentMonth = null;
+        const CENTER_X = 500;
+        const CENTER_Y = 500;
+        const BASE_RADIUS = 400;
 
-        // Month data
+        // ===== STATE =====
+        let viewMode = 'quarter'; // 'quarter' or 'trimester'
+        let zoomLevel = 0; // 0=year, 1=quarter/trimester, 2=month, 3=week, 4=day
+        let focusPath = []; // e.g., [0] for Q1, [0, 1] for Q1->February, [0, 1, 2] for Q1->Feb->Week3
+
+        // ===== DATA =====
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
-
+        const monthAbbrev = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-        // Calculate week numbers for 2026
-        function getWeeksForMonth(monthIndex) {
-            const weeks = [];
-            let weekNum = 1;
-
-            // Calculate starting week number for this month
-            for (let i = 0; i < monthIndex; i++) {
-                weekNum += Math.ceil(monthDays[i] / 7);
-            }
-
-            const startWeek = weekNum;
-            const numWeeks = Math.ceil(monthDays[monthIndex] / 7);
-
-            for (let i = 0; i < numWeeks; i++) {
-                weeks.push(startWeek + i);
-            }
-
-            return weeks;
-        }
-
-        // Group definitions
         const quarters = {
             q1: { label: 'Q1', months: [0, 1, 2], color: 'q1-color', startAngle: 0 },
             q2: { label: 'Q2', months: [3, 4, 5], color: 'q2-color', startAngle: 90 },
@@ -256,13 +339,20 @@
             return null;
         }
 
-        function getColorForMonth(monthIndex) {
-            const groupKey = getGroupForMonth(monthIndex);
-            const groups = getCurrentGroups();
-            return groups[groupKey].color;
+        function getWeeksForMonth(monthIndex) {
+            const weeks = [];
+            let weekNum = 1;
+            for (let i = 0; i < monthIndex; i++) {
+                weekNum += Math.ceil(monthDays[i] / 7);
+            }
+            const numWeeks = Math.ceil(monthDays[monthIndex] / 7);
+            for (let i = 0; i < numWeeks; i++) {
+                weeks.push(weekNum + i);
+            }
+            return weeks;
         }
 
-        // SVG helper functions
+        // ===== SVG HELPERS =====
         function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
             const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
             return {
@@ -275,177 +365,256 @@
             const start = polarToCartesian(x, y, radius, endAngle);
             const end = polarToCartesian(x, y, radius, startAngle);
             const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-            return [
-                "M", x, y,
-                "L", start.x, start.y,
-                "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-                "Z"
-            ].join(" ");
+            return `M ${x} ${y} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
         }
 
         function getLabelPosition(centerX, centerY, radius, startAngle, endAngle) {
             const midAngle = (startAngle + endAngle) / 2;
-            const labelRadius = radius * 0.7;
-            return polarToCartesian(centerX, centerY, labelRadius, midAngle);
+            return polarToCartesian(centerX, centerY, radius, midAngle);
         }
 
-        // Render year view with all 12 months
-        function renderYearView() {
-            const svg = document.getElementById('calendar');
-            const centerX = 350;
-            const centerY = 350;
-            const radius = 300;
+        // ===== RENDERING =====
+        function renderCalendar() {
+            const container = document.getElementById('zoomGroup');
             let html = '';
 
-            // Each month is 30 degrees (360/12)
+            // Always render full year structure
+            // Level 0: Year view shows months
+            // Level 1+: Shows more detail based on zoom
+
+            if (zoomLevel === 0) {
+                // Year view: show all 12 months
+                html += renderYearView();
+            } else if (zoomLevel === 1) {
+                // Group view: show months with weeks
+                html += renderGroupView();
+            } else if (zoomLevel === 2) {
+                // Month view: show weeks with days
+                html += renderMonthView();
+            } else if (zoomLevel === 3) {
+                // Week view: show days
+                html += renderWeekView();
+            } else if (zoomLevel === 4) {
+                // Day view: show hours/details
+                html += renderDayView();
+            }
+
+            container.innerHTML = html;
+            attachEventHandlers();
+            applyZoomTransform();
+        }
+
+        function renderYearView() {
+            let html = '';
             const degreesPerMonth = 30;
 
-            // Render all 12 months
             monthNames.forEach((monthName, index) => {
                 const startAngle = index * degreesPerMonth;
                 const endAngle = (index + 1) * degreesPerMonth;
-                const color = getColorForMonth(index);
+                const groupKey = getGroupForMonth(index);
+                const group = getCurrentGroups()[groupKey];
+                const color = group.color;
 
-                const path = describeArc(centerX, centerY, radius, startAngle, endAngle);
-                const labelPos = getLabelPosition(centerX, centerY, radius, startAngle, endAngle);
+                const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, startAngle, endAngle);
+                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.75, startAngle, endAngle);
 
-                // Use abbreviated month name for space
-                const abbrev = monthName.substring(0, 3);
-
-                html += `<path id="month-${index}" class="segment ${color}" d="${path}" />`;
-                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${abbrev}</text>`;
+                html += `<path class="segment ${color}" data-type="month" data-index="${index}" d="${path}" />`;
+                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${monthAbbrev[index]}</text>`;
             });
 
-            // Center circle with year
-            html += `<circle cx="${centerX}" cy="${centerY}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
-            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">${YEAR}</text>`;
+            // Center circle
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 15}" text-anchor="middle">${YEAR}</text>`;
 
-            svg.innerHTML = html;
-
-            // Add click handlers
-            monthNames.forEach((monthName, index) => {
-                const element = document.getElementById(`month-${index}`);
-                element.addEventListener('click', () => {
-                    const groupKey = getGroupForMonth(index);
-                    zoomToGroup(groupKey);
-                });
-            });
-
-            currentView = 'year';
-            document.getElementById('backButton').classList.remove('visible');
+            return html;
         }
 
-        // Render group view (quarter or trimester) as an arc
-        function renderGroupView(groupKey) {
-            const svg = document.getElementById('calendar');
+        function renderGroupView() {
+            let html = '';
             const groups = getCurrentGroups();
+            const groupKey = Object.keys(groups)[focusPath[0]];
             const group = groups[groupKey];
 
-            // Position the arc to maintain its orientation from year view
-            const centerX = 350;
-            const centerY = 350;
-            const outerRadius = 320;
-            const innerRadius = 0;
-
-            let html = '';
-
-            // Calculate angles for each month in the group
             const numMonths = group.months.length;
             const totalAngle = viewMode === 'quarter' ? 90 : 120;
             const degreesPerMonth = totalAngle / numMonths;
             const startAngle = group.startAngle;
 
-            // Render each month with weeks
+            // Render all months in the year for context
+            const degreesPerMonthYear = 30;
+            monthNames.forEach((monthName, index) => {
+                const mStartAngle = index * degreesPerMonthYear;
+                const mEndAngle = (index + 1) * degreesPerMonthYear;
+                const mGroupKey = getGroupForMonth(index);
+                const mGroup = getCurrentGroups()[mGroupKey];
+                const isInFocus = group.months.includes(index);
+
+                const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, mStartAngle, mEndAngle);
+                const classes = `segment ${mGroup.color} ${!isInFocus ? 'context' : ''}`;
+
+                html += `<path class="${classes}" data-type="month-bg" d="${path}" />`;
+            });
+
+            // Render focused group with week details
             group.months.forEach((monthIndex, idx) => {
                 const monthStart = startAngle + (idx * degreesPerMonth);
                 const monthEnd = monthStart + degreesPerMonth;
                 const weeks = getWeeksForMonth(monthIndex);
                 const degreesPerWeek = degreesPerMonth / weeks.length;
 
-                // Render each week segment
                 weeks.forEach((weekNum, weekIdx) => {
                     const weekStart = monthStart + (weekIdx * degreesPerWeek);
                     const weekEnd = weekStart + degreesPerWeek;
 
-                    const path = describeArc(centerX, centerY, outerRadius, weekStart, weekEnd);
-                    const labelPos = getLabelPosition(centerX, centerY, outerRadius * 0.65, weekStart, weekEnd);
+                    const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, weekStart, weekEnd);
+                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.65, weekStart, weekEnd);
 
-                    html += `<path id="week-${weekNum}" class="segment month-${monthIndex + 1}" d="${path}" />`;
+                    html += `<path class="segment month-${monthIndex + 1}" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
                     html += `<text class="week-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</text>`;
                 });
 
-                // Add month name label
-                const monthLabelPos = getLabelPosition(centerX, centerY, outerRadius * 0.85, monthStart, monthEnd);
-                html += `<text class="month-name-label" x="${monthLabelPos.x}" y="${monthLabelPos.y}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
+                const monthLabelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.85, monthStart, monthEnd);
+                html += `<text class="month-name" x="${monthLabelPos.x}" y="${monthLabelPos.y}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
             });
 
-            // Add center label
-            html += `<circle cx="${centerX}" cy="${centerY}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
-            html += `<text class="center-label" x="${centerX}" y="${centerY + 5}" text-anchor="middle">${group.label}</text>`;
-            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${centerX}" y="${centerY + 30}" text-anchor="middle">${YEAR}</text>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${group.label}</text>`;
+            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
 
-            svg.innerHTML = html;
-
-            currentView = 'group';
-            currentGroup = groupKey;
-            document.getElementById('backButton').classList.add('visible');
+            return html;
         }
 
-        function zoomToGroup(groupKey) {
-            console.log(`Zooming to ${groupKey}`);
-
-            const svg = document.getElementById('calendar');
-            svg.style.opacity = '0';
-            svg.style.transform = 'scale(0.9)';
-
-            setTimeout(() => {
-                renderGroupView(groupKey);
-                svg.style.opacity = '1';
-                svg.style.transform = 'scale(1)';
-            }, 300);
+        function renderMonthView() {
+            let html = '';
+            // TODO: Implement month view with weeks and days
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Month</text>`;
+            return html;
         }
 
-        function zoomToYear() {
-            console.log('Returning to year view');
+        function renderWeekView() {
+            let html = '';
+            // TODO: Implement week view
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Week</text>`;
+            return html;
+        }
 
-            const svg = document.getElementById('calendar');
-            svg.style.opacity = '0';
-            svg.style.transform = 'scale(0.9)';
+        function renderDayView() {
+            let html = '';
+            // TODO: Implement day view
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Day</text>`;
+            return html;
+        }
 
-            setTimeout(() => {
-                renderYearView();
-                svg.style.opacity = '1';
-                svg.style.transform = 'scale(1)';
-            }, 300);
+        function attachEventHandlers() {
+            if (zoomLevel === 0) {
+                // Year view: click month to zoom to group
+                document.querySelectorAll('[data-type="month"]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        const monthIndex = parseInt(e.target.dataset.index);
+                        const groupKey = getGroupForMonth(monthIndex);
+                        const groups = getCurrentGroups();
+                        const groupIndex = Object.keys(groups).indexOf(groupKey);
+                        zoomTo(1, [groupIndex]);
+                    });
+                });
+            } else if (zoomLevel === 1) {
+                // Group view: click week to zoom to month
+                document.querySelectorAll('[data-type="week"]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        const monthIndex = parseInt(e.target.dataset.month);
+                        zoomTo(2, [focusPath[0], monthIndex]);
+                    });
+                });
+            }
+        }
+
+        function applyZoomTransform() {
+            const zoomGroup = document.getElementById('zoomGroup');
+
+            if (zoomLevel === 0) {
+                // No zoom
+                zoomGroup.style.transform = 'translate(0, 0) scale(1)';
+            } else if (zoomLevel === 1) {
+                // Zoom to quarter/trimester
+                const groups = getCurrentGroups();
+                const groupKey = Object.keys(groups)[focusPath[0]];
+                const group = groups[groupKey];
+
+                // Calculate zoom to focus on this arc
+                const scale = viewMode === 'quarter' ? 3.5 : 2.8;
+                const angle = group.startAngle + (viewMode === 'quarter' ? 45 : 60);
+                const distance = BASE_RADIUS * 0.4;
+
+                const offset = polarToCartesian(0, 0, distance, angle);
+                const translateX = -offset.x * scale;
+                const translateY = -offset.y * scale;
+
+                zoomGroup.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            } else if (zoomLevel === 2) {
+                // Zoom to month
+                const scale = 6;
+                zoomGroup.style.transform = `scale(${scale})`;
+            }
+        }
+
+        function zoomTo(level, path) {
+            console.log(`Zooming to level ${level}, path:`, path);
+            zoomLevel = level;
+            focusPath = path;
+            updateUI();
+            renderCalendar();
+        }
+
+        function updateUI() {
+            // Update zoom slider
+            document.querySelectorAll('.zoom-level').forEach(el => {
+                el.classList.toggle('active', parseInt(el.dataset.level) === zoomLevel);
+            });
+
+            // Update title
+            if (zoomLevel === 0) {
+                document.getElementById('title').textContent = 'RADIAL CALENDAR 2026';
+            } else if (zoomLevel === 1) {
+                const groups = getCurrentGroups();
+                const groupKey = Object.keys(groups)[focusPath[0]];
+                document.getElementById('title').textContent = `${groups[groupKey].label} 2026`;
+            }
         }
 
         function switchMode(mode) {
             if (viewMode === mode) return;
-
             viewMode = mode;
 
-            // Update toggle buttons
             document.getElementById('quarterBtn').classList.toggle('active', mode === 'quarter');
             document.getElementById('trimesterBtn').classList.toggle('active', mode === 'trimester');
+            document.getElementById('groupLabel').textContent = mode === 'quarter' ? 'Quarter' : 'Trimester';
 
-            // Re-render current view
-            if (currentView === 'year') {
-                renderYearView();
-            } else {
-                // If we're in a group view, go back to year view
-                zoomToYear();
-            }
+            // Reset to year view when switching modes
+            zoomTo(0, []);
         }
 
         // Event listeners
-        document.getElementById('backButton').addEventListener('click', zoomToYear);
         document.getElementById('quarterBtn').addEventListener('click', () => switchMode('quarter'));
         document.getElementById('trimesterBtn').addEventListener('click', () => switchMode('trimester'));
 
+        document.querySelectorAll('.zoom-level').forEach(el => {
+            el.addEventListener('click', () => {
+                const level = parseInt(el.dataset.level);
+                if (level < zoomLevel) {
+                    // Zoom out
+                    zoomTo(level, focusPath.slice(0, level));
+                }
+                // Can't jump forward without context
+            });
+        });
+
         // Initialize
-        renderYearView();
+        renderCalendar();
         console.log('Radial Calendar 2026 initialized');
-        console.log('Click on any month to zoom into its quarter/trimester');
+        console.log('Click segments to zoom in, use slider to zoom out');
     </script>
 </body>
 </html>
