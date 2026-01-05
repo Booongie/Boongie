@@ -531,6 +531,13 @@
             }
         }
 
+        // Normalize rotation angle to shortest path (-180, 180]
+        function normalizeAngle(angle) {
+            while (angle > 180) angle -= 360;
+            while (angle <= -180) angle += 360;
+            return angle;
+        }
+
         function applyZoomTransform() {
             const zoomGroup = document.getElementById('zoomGroup');
 
@@ -547,13 +554,20 @@
                 const totalAngle = viewMode === 'quarter' ? 90 : 120;
                 const midAngle = group.startAngle + (totalAngle / 2);
 
-                // Rotate to center segment at 12 o'clock (0 degrees)
-                const rotation = -midAngle;
+                // Rotate to center segment at 12 o'clock (shortest path)
+                const rotation = normalizeAngle(-midAngle);
 
                 // Scale to zoom in
                 const scale = viewMode === 'quarter' ? 3.5 : 2.8;
 
-                zoomGroup.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+                // Calculate pan: after rotation & scale, the arc center (at mid-radius) needs to be centered
+                // Mid-radius point of the arc
+                const midRadius = BASE_RADIUS * 0.6;
+                // After scale and rotation, this point is at (CENTER_X, CENTER_Y - midRadius * scale)
+                // To center it at (CENTER_X, CENTER_Y), translate by (0, midRadius * scale)
+                const panY = midRadius * scale;
+
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
             } else if (zoomLevel === 2) {
                 // Zoom to month
                 const groups = getCurrentGroups();
@@ -569,21 +583,29 @@
                 const monthStartAngle = group.startAngle + (monthIndexInGroup * degreesPerMonth);
                 const monthMidAngle = monthStartAngle + (degreesPerMonth / 2);
 
-                // Rotate to center month at 12 o'clock
-                const rotation = -monthMidAngle;
+                // Rotate to center month at 12 o'clock (shortest path)
+                const rotation = normalizeAngle(-monthMidAngle);
 
                 // Scale to zoom in on month
                 const scale = 8;
 
-                zoomGroup.style.transform = `rotate(${rotation}deg) scale(${scale})`;
+                // Pan to center the month's arc
+                const midRadius = BASE_RADIUS * 0.6;
+                const panY = midRadius * scale;
+
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
             } else if (zoomLevel === 3) {
                 // Zoom to week (placeholder)
                 const scale = 15;
-                zoomGroup.style.transform = `rotate(0deg) scale(${scale})`;
+                const midRadius = BASE_RADIUS * 0.6;
+                const panY = midRadius * scale;
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             } else if (zoomLevel === 4) {
                 // Zoom to day (placeholder)
                 const scale = 30;
-                zoomGroup.style.transform = `rotate(0deg) scale(${scale})`;
+                const midRadius = BASE_RADIUS * 0.6;
+                const panY = midRadius * scale;
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             }
         }
 
