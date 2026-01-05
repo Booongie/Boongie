@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radial Calendar - 2025</title>
+    <title>Radial Calendar - 2026</title>
     <style>
         * {
             margin: 0;
@@ -19,6 +19,7 @@
             justify-content: center;
             align-items: center;
             color: #333;
+            padding: 20px;
         }
 
         .container {
@@ -28,10 +29,43 @@
 
         h1 {
             color: white;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 2.5em;
             font-weight: 300;
             letter-spacing: 2px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .toggle-container {
+            background: white;
+            padding: 4px;
+            border-radius: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: inline-flex;
+        }
+
+        .toggle-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
 
         .calendar-wrapper {
@@ -40,6 +74,7 @@
             padding: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             position: relative;
+            display: inline-block;
         }
 
         svg {
@@ -58,17 +93,24 @@
         }
 
         .label {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: 600;
             fill: white;
             pointer-events: none;
             user-select: none;
-            transition: all 0.3s ease;
         }
 
-        .month-label {
-            font-size: 20px;
+        .week-label {
+            font-size: 12px;
             font-weight: 600;
+            fill: white;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .month-name-label {
+            font-size: 14px;
+            font-weight: 700;
             fill: white;
             pointer-events: none;
             user-select: none;
@@ -83,10 +125,6 @@
         }
 
         .back-button {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
             background: white;
             border: none;
             padding: 12px 24px;
@@ -98,7 +136,6 @@
             transition: all 0.3s ease;
             opacity: 0;
             pointer-events: none;
-            z-index: 10;
         }
 
         .back-button.visible {
@@ -108,51 +145,50 @@
 
         .back-button:hover {
             background: #f0f0f0;
-            transform: translateX(-50%) translateY(-2px);
+            transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         }
 
-        /* Color schemes */
+        /* Quarter colors */
         .q1-color { fill: #FF6B6B; }
         .q2-color { fill: #4ECDC4; }
         .q3-color { fill: #45B7D1; }
         .q4-color { fill: #FFA07A; }
 
-        /* Month variations - slightly different shades */
+        /* Trimester colors */
+        .t1-color { fill: #FF6B6B; }
+        .t2-color { fill: #4ECDC4; }
+        .t3-color { fill: #FFA07A; }
+
+        /* Month color variations */
         .month-1 { fill: #FF6B6B; }
         .month-2 { fill: #FF5252; }
         .month-3 { fill: #FF3838; }
-
         .month-4 { fill: #4ECDC4; }
         .month-5 { fill: #3DB9B0; }
         .month-6 { fill: #2DA59C; }
-
         .month-7 { fill: #45B7D1; }
         .month-8 { fill: #34A3BD; }
         .month-9 { fill: #2390A9; }
-
         .month-10 { fill: #FFA07A; }
         .month-11 { fill: #FF8C66; }
         .month-12 { fill: #FF7852; }
-
-        .fade-enter {
-            opacity: 0;
-            transform: scale(0.8);
-        }
-
-        .fade-enter-active {
-            opacity: 1;
-            transform: scale(1);
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 id="title">RADIAL CALENDAR</h1>
-        <button class="back-button" id="backButton">← Back to Year View</button>
+        <h1 id="title">RADIAL CALENDAR 2026</h1>
+
+        <div class="controls">
+            <div class="toggle-container">
+                <button class="toggle-btn active" id="quarterBtn">Quarter View</button>
+                <button class="toggle-btn" id="trimesterBtn">Trimester View</button>
+            </div>
+            <button class="back-button" id="backButton">← Back</button>
+        </div>
+
         <div class="calendar-wrapper">
-            <svg id="calendar" width="600" height="600" viewBox="0 0 600 600">
+            <svg id="calendar" width="700" height="700" viewBox="0 0 700 700">
                 <!-- SVG content will be dynamically generated -->
             </svg>
         </div>
@@ -160,23 +196,71 @@
 
     <script>
         // Application state
-        let currentView = 'year'; // 'year' or 'quarter'
-        let currentQuarter = null;
+        const YEAR = 2026;
+        let viewMode = 'quarter'; // 'quarter' or 'trimester'
+        let currentView = 'year'; // 'year' or 'group'
+        let currentGroup = null; // which quarter/trimester we're viewing
+        let currentMonth = null;
 
-        // Quarter and month definitions
+        // Month data
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+
+        const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+        // Calculate week numbers for 2026
+        function getWeeksForMonth(monthIndex) {
+            const weeks = [];
+            let weekNum = 1;
+
+            // Calculate starting week number for this month
+            for (let i = 0; i < monthIndex; i++) {
+                weekNum += Math.ceil(monthDays[i] / 7);
+            }
+
+            const startWeek = weekNum;
+            const numWeeks = Math.ceil(monthDays[monthIndex] / 7);
+
+            for (let i = 0; i < numWeeks; i++) {
+                weeks.push(startWeek + i);
+            }
+
+            return weeks;
+        }
+
+        // Group definitions
         const quarters = {
-            q1: { label: 'Q1', months: ['January', 'February', 'March'], color: 'q1-color' },
-            q2: { label: 'Q2', months: ['April', 'May', 'June'], color: 'q2-color' },
-            q3: { label: 'Q3', months: ['July', 'August', 'September'], color: 'q3-color' },
-            q4: { label: 'Q4', months: ['October', 'November', 'December'], color: 'q4-color' }
+            q1: { label: 'Q1', months: [0, 1, 2], color: 'q1-color', startAngle: 0 },
+            q2: { label: 'Q2', months: [3, 4, 5], color: 'q2-color', startAngle: 90 },
+            q3: { label: 'Q3', months: [6, 7, 8], color: 'q3-color', startAngle: 180 },
+            q4: { label: 'Q4', months: [9, 10, 11], color: 'q4-color', startAngle: 270 }
         };
 
-        const monthNumbers = {
-            'January': 1, 'February': 2, 'March': 3,
-            'April': 4, 'May': 5, 'June': 6,
-            'July': 7, 'August': 8, 'September': 9,
-            'October': 10, 'November': 11, 'December': 12
+        const trimesters = {
+            t1: { label: 'T1', months: [0, 1, 2, 3], color: 't1-color', startAngle: 0 },
+            t2: { label: 'T2', months: [4, 5, 6, 7], color: 't2-color', startAngle: 120 },
+            t3: { label: 'T3', months: [8, 9, 10, 11], color: 't3-color', startAngle: 240 }
         };
+
+        function getCurrentGroups() {
+            return viewMode === 'quarter' ? quarters : trimesters;
+        }
+
+        function getGroupForMonth(monthIndex) {
+            const groups = getCurrentGroups();
+            for (const [key, group] of Object.entries(groups)) {
+                if (group.months.includes(monthIndex)) {
+                    return key;
+                }
+            }
+            return null;
+        }
+
+        function getColorForMonth(monthIndex) {
+            const groupKey = getGroupForMonth(monthIndex);
+            const groups = getCurrentGroups();
+            return groups[groupKey].color;
+        }
 
         // SVG helper functions
         function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
@@ -201,114 +285,121 @@
 
         function getLabelPosition(centerX, centerY, radius, startAngle, endAngle) {
             const midAngle = (startAngle + endAngle) / 2;
-            const labelRadius = radius * 0.65;
+            const labelRadius = radius * 0.7;
             return polarToCartesian(centerX, centerY, labelRadius, midAngle);
         }
 
-        // Render functions
+        // Render year view with all 12 months
         function renderYearView() {
             const svg = document.getElementById('calendar');
-            const centerX = 300;
-            const centerY = 300;
-            const radius = 250;
-
+            const centerX = 350;
+            const centerY = 350;
+            const radius = 300;
             let html = '';
 
-            // Create four quarters
-            const quarterAngles = [
-                { id: 'q1', start: 0, end: 90 },
-                { id: 'q2', start: 90, end: 180 },
-                { id: 'q3', start: 180, end: 270 },
-                { id: 'q4', start: 270, end: 360 }
-            ];
+            // Each month is 30 degrees (360/12)
+            const degreesPerMonth = 30;
 
-            quarterAngles.forEach(({ id, start, end }) => {
-                const path = describeArc(centerX, centerY, radius, start, end);
-                const labelPos = getLabelPosition(centerX, centerY, radius, start, end);
-                const quarter = quarters[id];
+            // Render all 12 months
+            monthNames.forEach((monthName, index) => {
+                const startAngle = index * degreesPerMonth;
+                const endAngle = (index + 1) * degreesPerMonth;
+                const color = getColorForMonth(index);
 
-                html += `<path id="${id}" class="segment ${quarter.color}" d="${path}" />`;
-                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${quarter.label}</text>`;
+                const path = describeArc(centerX, centerY, radius, startAngle, endAngle);
+                const labelPos = getLabelPosition(centerX, centerY, radius, startAngle, endAngle);
+
+                // Use abbreviated month name for space
+                const abbrev = monthName.substring(0, 3);
+
+                html += `<path id="month-${index}" class="segment ${color}" d="${path}" />`;
+                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${abbrev}</text>`;
             });
 
             // Center circle with year
-            html += `<circle cx="${centerX}" cy="${centerY}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
-            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">2025</text>`;
+            html += `<circle cx="${centerX}" cy="${centerY}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">${YEAR}</text>`;
 
             svg.innerHTML = html;
 
             // Add click handlers
-            quarterAngles.forEach(({ id }) => {
-                const element = document.getElementById(id);
-                element.addEventListener('click', () => zoomToQuarter(id));
-            });
-
-            // Update state
-            currentView = 'year';
-            document.getElementById('backButton').classList.remove('visible');
-            document.getElementById('title').textContent = 'RADIAL CALENDAR';
-        }
-
-        function renderQuarterView(quarterId) {
-            const svg = document.getElementById('calendar');
-            const centerX = 300;
-            const centerY = 300;
-            const radius = 250;
-            const quarter = quarters[quarterId];
-
-            let html = '';
-
-            // Create three month segments (each 120° for a full circle)
-            const monthAngles = [
-                { start: 0, end: 120 },
-                { start: 120, end: 240 },
-                { start: 240, end: 360 }
-            ];
-
-            monthAngles.forEach((angles, index) => {
-                const monthName = quarter.months[index];
-                const monthNum = monthNumbers[monthName];
-                const path = describeArc(centerX, centerY, radius, angles.start, angles.end);
-                const labelPos = getLabelPosition(centerX, centerY, radius, angles.start, angles.end);
-
-                html += `<path id="month-${monthNum}" class="segment month-${monthNum}" d="${path}" />`;
-                html += `<text class="month-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${monthName}</text>`;
-            });
-
-            // Center circle with quarter label
-            html += `<circle cx="${centerX}" cy="${centerY}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
-            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">${quarter.label}</text>`;
-            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${centerX}" y="${centerY + 40}" text-anchor="middle">2025</text>`;
-
-            svg.innerHTML = html;
-
-            // Add click handlers for months (for now, just console log)
-            quarter.months.forEach((monthName, index) => {
-                const monthNum = monthNumbers[monthName];
-                const element = document.getElementById(`month-${monthNum}`);
+            monthNames.forEach((monthName, index) => {
+                const element = document.getElementById(`month-${index}`);
                 element.addEventListener('click', () => {
-                    console.log(`Clicked ${monthName} 2025`);
-                    // Future: zoom into month view with days
+                    const groupKey = getGroupForMonth(index);
+                    zoomToGroup(groupKey);
                 });
             });
 
-            // Update state
-            currentView = 'quarter';
-            currentQuarter = quarterId;
-            document.getElementById('backButton').classList.add('visible');
-            document.getElementById('title').textContent = `${quarter.label} - 2025`;
+            currentView = 'year';
+            document.getElementById('backButton').classList.remove('visible');
         }
 
-        function zoomToQuarter(quarterId) {
-            console.log(`Zooming into ${quarterId.toUpperCase()}`);
+        // Render group view (quarter or trimester) as an arc
+        function renderGroupView(groupKey) {
+            const svg = document.getElementById('calendar');
+            const groups = getCurrentGroups();
+            const group = groups[groupKey];
 
-            // Add smooth transition
+            // Position the arc to maintain its orientation from year view
+            const centerX = 350;
+            const centerY = 350;
+            const outerRadius = 320;
+            const innerRadius = 0;
+
+            let html = '';
+
+            // Calculate angles for each month in the group
+            const numMonths = group.months.length;
+            const totalAngle = viewMode === 'quarter' ? 90 : 120;
+            const degreesPerMonth = totalAngle / numMonths;
+            const startAngle = group.startAngle;
+
+            // Render each month with weeks
+            group.months.forEach((monthIndex, idx) => {
+                const monthStart = startAngle + (idx * degreesPerMonth);
+                const monthEnd = monthStart + degreesPerMonth;
+                const weeks = getWeeksForMonth(monthIndex);
+                const degreesPerWeek = degreesPerMonth / weeks.length;
+
+                // Render each week segment
+                weeks.forEach((weekNum, weekIdx) => {
+                    const weekStart = monthStart + (weekIdx * degreesPerWeek);
+                    const weekEnd = weekStart + degreesPerWeek;
+
+                    const path = describeArc(centerX, centerY, outerRadius, weekStart, weekEnd);
+                    const labelPos = getLabelPosition(centerX, centerY, outerRadius * 0.65, weekStart, weekEnd);
+
+                    html += `<path id="week-${weekNum}" class="segment month-${monthIndex + 1}" d="${path}" />`;
+                    html += `<text class="week-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</text>`;
+                });
+
+                // Add month name label
+                const monthLabelPos = getLabelPosition(centerX, centerY, outerRadius * 0.85, monthStart, monthEnd);
+                html += `<text class="month-name-label" x="${monthLabelPos.x}" y="${monthLabelPos.y}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
+            });
+
+            // Add center label
+            html += `<circle cx="${centerX}" cy="${centerY}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${centerX}" y="${centerY + 5}" text-anchor="middle">${group.label}</text>`;
+            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${centerX}" y="${centerY + 30}" text-anchor="middle">${YEAR}</text>`;
+
+            svg.innerHTML = html;
+
+            currentView = 'group';
+            currentGroup = groupKey;
+            document.getElementById('backButton').classList.add('visible');
+        }
+
+        function zoomToGroup(groupKey) {
+            console.log(`Zooming to ${groupKey}`);
+
             const svg = document.getElementById('calendar');
             svg.style.opacity = '0';
             svg.style.transform = 'scale(0.9)';
 
             setTimeout(() => {
-                renderQuarterView(quarterId);
+                renderGroupView(groupKey);
                 svg.style.opacity = '1';
                 svg.style.transform = 'scale(1)';
             }, 300);
@@ -317,7 +408,6 @@
         function zoomToYear() {
             console.log('Returning to year view');
 
-            // Add smooth transition
             const svg = document.getElementById('calendar');
             svg.style.opacity = '0';
             svg.style.transform = 'scale(0.9)';
@@ -329,12 +419,33 @@
             }, 300);
         }
 
-        // Initialize
-        document.getElementById('backButton').addEventListener('click', zoomToYear);
-        renderYearView();
+        function switchMode(mode) {
+            if (viewMode === mode) return;
 
-        console.log('Radial Calendar 2025 initialized');
-        console.log('Click on any quarter to zoom in and view months');
+            viewMode = mode;
+
+            // Update toggle buttons
+            document.getElementById('quarterBtn').classList.toggle('active', mode === 'quarter');
+            document.getElementById('trimesterBtn').classList.toggle('active', mode === 'trimester');
+
+            // Re-render current view
+            if (currentView === 'year') {
+                renderYearView();
+            } else {
+                // If we're in a group view, go back to year view
+                zoomToYear();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('backButton').addEventListener('click', zoomToYear);
+        document.getElementById('quarterBtn').addEventListener('click', () => switchMode('quarter'));
+        document.getElementById('trimesterBtn').addEventListener('click', () => switchMode('trimester'));
+
+        // Initialize
+        renderYearView();
+        console.log('Radial Calendar 2026 initialized');
+        console.log('Click on any month to zoom into its quarter/trimester');
     </script>
 </body>
 </html>
