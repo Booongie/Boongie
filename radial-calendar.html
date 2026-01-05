@@ -23,6 +23,7 @@
 
         .container {
             text-align: center;
+            position: relative;
         }
 
         h1 {
@@ -38,29 +39,42 @@
             border-radius: 50%;
             padding: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
         }
 
-        .quarter {
+        svg {
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .segment {
             cursor: pointer;
             transition: all 0.3s ease;
             stroke: white;
             stroke-width: 2;
         }
 
-        .quarter:hover {
+        .segment:hover {
             opacity: 0.8;
-            transform: scale(1.02);
         }
 
-        .quarter-label {
+        .label {
             font-size: 24px;
+            font-weight: 600;
+            fill: white;
+            pointer-events: none;
+            user-select: none;
+            transition: all 0.3s ease;
+        }
+
+        .month-label {
+            font-size: 20px;
             font-weight: 600;
             fill: white;
             pointer-events: none;
             user-select: none;
         }
 
-        .year-label {
+        .center-label {
             font-size: 48px;
             font-weight: 700;
             fill: #333;
@@ -68,65 +82,259 @@
             user-select: none;
         }
 
-        /* Quarter colors */
-        .q1 { fill: #FF6B6B; }
-        .q2 { fill: #4ECDC4; }
-        .q3 { fill: #45B7D1; }
-        .q4 { fill: #FFA07A; }
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .back-button.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .back-button:hover {
+            background: #f0f0f0;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Color schemes */
+        .q1-color { fill: #FF6B6B; }
+        .q2-color { fill: #4ECDC4; }
+        .q3-color { fill: #45B7D1; }
+        .q4-color { fill: #FFA07A; }
+
+        /* Month variations - slightly different shades */
+        .month-1 { fill: #FF6B6B; }
+        .month-2 { fill: #FF5252; }
+        .month-3 { fill: #FF3838; }
+
+        .month-4 { fill: #4ECDC4; }
+        .month-5 { fill: #3DB9B0; }
+        .month-6 { fill: #2DA59C; }
+
+        .month-7 { fill: #45B7D1; }
+        .month-8 { fill: #34A3BD; }
+        .month-9 { fill: #2390A9; }
+
+        .month-10 { fill: #FFA07A; }
+        .month-11 { fill: #FF8C66; }
+        .month-12 { fill: #FF7852; }
+
+        .fade-enter {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+
+        .fade-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>RADIAL CALENDAR</h1>
+        <h1 id="title">RADIAL CALENDAR</h1>
+        <button class="back-button" id="backButton">← Back to Year View</button>
         <div class="calendar-wrapper">
-            <svg width="600" height="600" viewBox="0 0 600 600">
-                <!-- Q1: January - March (Top Right: 0° to 90°) -->
-                <path id="q1" class="quarter q1"
-                      d="M 300 300 L 300 50 A 250 250 0 0 1 550 300 Z" />
-
-                <!-- Q2: April - June (Bottom Right: 90° to 180°) -->
-                <path id="q2" class="quarter q2"
-                      d="M 300 300 L 550 300 A 250 250 0 0 1 300 550 Z" />
-
-                <!-- Q3: July - September (Bottom Left: 180° to 270°) -->
-                <path id="q3" class="quarter q3"
-                      d="M 300 300 L 300 550 A 250 250 0 0 1 50 300 Z" />
-
-                <!-- Q4: October - December (Top Left: 270° to 360°) -->
-                <path id="q4" class="quarter q4"
-                      d="M 300 300 L 50 300 A 250 250 0 0 1 300 50 Z" />
-
-                <!-- Quarter Labels -->
-                <text class="quarter-label" x="425" y="175">Q1</text>
-                <text class="quarter-label" x="425" y="435">Q2</text>
-                <text class="quarter-label" x="155" y="435">Q3</text>
-                <text class="quarter-label" x="155" y="175">Q4</text>
-
-                <!-- Center circle with year -->
-                <circle cx="300" cy="300" r="80" fill="white" stroke="#333" stroke-width="2"/>
-                <text class="year-label" x="300" y="320" text-anchor="middle">2025</text>
+            <svg id="calendar" width="600" height="600" viewBox="0 0 600 600">
+                <!-- SVG content will be dynamically generated -->
             </svg>
         </div>
     </div>
 
     <script>
-        // Add click handlers to each quarter
-        const quarters = ['q1', 'q2', 'q3', 'q4'];
+        // Application state
+        let currentView = 'year'; // 'year' or 'quarter'
+        let currentQuarter = null;
 
-        quarters.forEach(quarterId => {
-            const element = document.getElementById(quarterId);
-            element.addEventListener('click', () => {
-                console.log(`Clicked ${quarterId.toUpperCase()}`);
-                // Visual feedback
-                element.style.opacity = '0.6';
-                setTimeout(() => {
-                    element.style.opacity = '1';
-                }, 200);
+        // Quarter and month definitions
+        const quarters = {
+            q1: { label: 'Q1', months: ['January', 'February', 'March'], color: 'q1-color' },
+            q2: { label: 'Q2', months: ['April', 'May', 'June'], color: 'q2-color' },
+            q3: { label: 'Q3', months: ['July', 'August', 'September'], color: 'q3-color' },
+            q4: { label: 'Q4', months: ['October', 'November', 'December'], color: 'q4-color' }
+        };
+
+        const monthNumbers = {
+            'January': 1, 'February': 2, 'March': 3,
+            'April': 4, 'May': 5, 'June': 6,
+            'July': 7, 'August': 8, 'September': 9,
+            'October': 10, 'November': 11, 'December': 12
+        };
+
+        // SVG helper functions
+        function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+            const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        }
+
+        function describeArc(x, y, radius, startAngle, endAngle) {
+            const start = polarToCartesian(x, y, radius, endAngle);
+            const end = polarToCartesian(x, y, radius, startAngle);
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+            return [
+                "M", x, y,
+                "L", start.x, start.y,
+                "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+                "Z"
+            ].join(" ");
+        }
+
+        function getLabelPosition(centerX, centerY, radius, startAngle, endAngle) {
+            const midAngle = (startAngle + endAngle) / 2;
+            const labelRadius = radius * 0.65;
+            return polarToCartesian(centerX, centerY, labelRadius, midAngle);
+        }
+
+        // Render functions
+        function renderYearView() {
+            const svg = document.getElementById('calendar');
+            const centerX = 300;
+            const centerY = 300;
+            const radius = 250;
+
+            let html = '';
+
+            // Create four quarters
+            const quarterAngles = [
+                { id: 'q1', start: 0, end: 90 },
+                { id: 'q2', start: 90, end: 180 },
+                { id: 'q3', start: 180, end: 270 },
+                { id: 'q4', start: 270, end: 360 }
+            ];
+
+            quarterAngles.forEach(({ id, start, end }) => {
+                const path = describeArc(centerX, centerY, radius, start, end);
+                const labelPos = getLabelPosition(centerX, centerY, radius, start, end);
+                const quarter = quarters[id];
+
+                html += `<path id="${id}" class="segment ${quarter.color}" d="${path}" />`;
+                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${quarter.label}</text>`;
             });
-        });
+
+            // Center circle with year
+            html += `<circle cx="${centerX}" cy="${centerY}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">2025</text>`;
+
+            svg.innerHTML = html;
+
+            // Add click handlers
+            quarterAngles.forEach(({ id }) => {
+                const element = document.getElementById(id);
+                element.addEventListener('click', () => zoomToQuarter(id));
+            });
+
+            // Update state
+            currentView = 'year';
+            document.getElementById('backButton').classList.remove('visible');
+            document.getElementById('title').textContent = 'RADIAL CALENDAR';
+        }
+
+        function renderQuarterView(quarterId) {
+            const svg = document.getElementById('calendar');
+            const centerX = 300;
+            const centerY = 300;
+            const radius = 250;
+            const quarter = quarters[quarterId];
+
+            let html = '';
+
+            // Create three month segments (each 120° for a full circle)
+            const monthAngles = [
+                { start: 0, end: 120 },
+                { start: 120, end: 240 },
+                { start: 240, end: 360 }
+            ];
+
+            monthAngles.forEach((angles, index) => {
+                const monthName = quarter.months[index];
+                const monthNum = monthNumbers[monthName];
+                const path = describeArc(centerX, centerY, radius, angles.start, angles.end);
+                const labelPos = getLabelPosition(centerX, centerY, radius, angles.start, angles.end);
+
+                html += `<path id="month-${monthNum}" class="segment month-${monthNum}" d="${path}" />`;
+                html += `<text class="month-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${monthName}</text>`;
+            });
+
+            // Center circle with quarter label
+            html += `<circle cx="${centerX}" cy="${centerY}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${centerX}" y="${centerY + 15}" text-anchor="middle">${quarter.label}</text>`;
+            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${centerX}" y="${centerY + 40}" text-anchor="middle">2025</text>`;
+
+            svg.innerHTML = html;
+
+            // Add click handlers for months (for now, just console log)
+            quarter.months.forEach((monthName, index) => {
+                const monthNum = monthNumbers[monthName];
+                const element = document.getElementById(`month-${monthNum}`);
+                element.addEventListener('click', () => {
+                    console.log(`Clicked ${monthName} 2025`);
+                    // Future: zoom into month view with days
+                });
+            });
+
+            // Update state
+            currentView = 'quarter';
+            currentQuarter = quarterId;
+            document.getElementById('backButton').classList.add('visible');
+            document.getElementById('title').textContent = `${quarter.label} - 2025`;
+        }
+
+        function zoomToQuarter(quarterId) {
+            console.log(`Zooming into ${quarterId.toUpperCase()}`);
+
+            // Add smooth transition
+            const svg = document.getElementById('calendar');
+            svg.style.opacity = '0';
+            svg.style.transform = 'scale(0.9)';
+
+            setTimeout(() => {
+                renderQuarterView(quarterId);
+                svg.style.opacity = '1';
+                svg.style.transform = 'scale(1)';
+            }, 300);
+        }
+
+        function zoomToYear() {
+            console.log('Returning to year view');
+
+            // Add smooth transition
+            const svg = document.getElementById('calendar');
+            svg.style.opacity = '0';
+            svg.style.transform = 'scale(0.9)';
+
+            setTimeout(() => {
+                renderYearView();
+                svg.style.opacity = '1';
+                svg.style.transform = 'scale(1)';
+            }, 300);
+        }
+
+        // Initialize
+        document.getElementById('backButton').addEventListener('click', zoomToYear);
+        renderYearView();
 
         console.log('Radial Calendar 2025 initialized');
-        console.log('Click on any quarter to interact');
+        console.log('Click on any quarter to zoom in and view months');
     </script>
 </body>
 </html>
