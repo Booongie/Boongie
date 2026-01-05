@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radial Calendar - 2025</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .calendar-wrapper {
+            background: white;
+            border-radius: 50%;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .quarter {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            stroke: white;
+            stroke-width: 2;
+        }
+
+        .quarter:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+        }
+
+        .quarter-label {
+            font-size: 24px;
+            font-weight: 600;
+            fill: white;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .year-label {
+            font-size: 48px;
+            font-weight: 700;
+            fill: #333;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Quarter colors */
+        .q1 { fill: #FF6B6B; }
+        .q2 { fill: #4ECDC4; }
+        .q3 { fill: #45B7D1; }
+        .q4 { fill: #FFA07A; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RADIAL CALENDAR</h1>
+        <div class="calendar-wrapper">
+            <svg width="600" height="600" viewBox="0 0 600 600">
+                <!-- Q1: January - March (Top Right: 0° to 90°) -->
+                <path id="q1" class="quarter q1"
+                      d="M 300 300 L 300 50 A 250 250 0 0 1 550 300 Z" />
+
+                <!-- Q2: April - June (Bottom Right: 90° to 180°) -->
+                <path id="q2" class="quarter q2"
+                      d="M 300 300 L 550 300 A 250 250 0 0 1 300 550 Z" />
+
+                <!-- Q3: July - September (Bottom Left: 180° to 270°) -->
+                <path id="q3" class="quarter q3"
+                      d="M 300 300 L 300 550 A 250 250 0 0 1 50 300 Z" />
+
+                <!-- Q4: October - December (Top Left: 270° to 360°) -->
+                <path id="q4" class="quarter q4"
+                      d="M 300 300 L 50 300 A 250 250 0 0 1 300 50 Z" />
+
+                <!-- Quarter Labels -->
+                <text class="quarter-label" x="425" y="175">Q1</text>
+                <text class="quarter-label" x="425" y="435">Q2</text>
+                <text class="quarter-label" x="155" y="435">Q3</text>
+                <text class="quarter-label" x="155" y="175">Q4</text>
+
+                <!-- Center circle with year -->
+                <circle cx="300" cy="300" r="80" fill="white" stroke="#333" stroke-width="2"/>
+                <text class="year-label" x="300" y="320" text-anchor="middle">2025</text>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        // Add click handlers to each quarter
+        const quarters = ['q1', 'q2', 'q3', 'q4'];
+
+        quarters.forEach(quarterId => {
+            const element = document.getElementById(quarterId);
+            element.addEventListener('click', () => {
+                console.log(`Clicked ${quarterId.toUpperCase()}`);
+                // Visual feedback
+                element.style.opacity = '0.6';
+                setTimeout(() => {
+                    element.style.opacity = '1';
+                }, 200);
+            });
+        });
+
+        console.log('Radial Calendar 2025 initialized');
+        console.log('Click on any quarter to interact');
+    </script>
+</body>
+</html>
