@@ -129,13 +129,13 @@
             justify-content: center;
             align-items: center;
             position: relative;
+            overflow: visible;
         }
 
         svg {
-            width: 100%;
-            height: 100%;
-            max-width: 1200px;
-            max-height: 1200px;
+            width: 100vw;
+            height: 100vh;
+            overflow: visible;
         }
 
         #zoomGroup {
@@ -220,6 +220,7 @@
         .t2-color { fill: #4ECDC4; }
         .t3-color { fill: #FFA07A; }
 
+        /* Month color variations */
         .month-1 { fill: #FF6B6B; }
         .month-2 { fill: #FF5252; }
         .month-3 { fill: #FF3838; }
@@ -287,6 +288,7 @@
         <!-- Calendar SVG -->
         <div class="calendar-container">
             <svg id="calendar" viewBox="0 0 1000 1000">
+                <defs id="textPaths"></defs>
                 <g id="zoomGroup">
                     <!-- Content will be dynamically generated -->
                 </g>
@@ -299,7 +301,8 @@
         const YEAR = 2026;
         const CENTER_X = 500;
         const CENTER_Y = 500;
-        const BASE_RADIUS = 400;
+        const OUTER_RADIUS = 400;
+        const INNER_RADIUS = 250; // Create ring instead of full pie
 
         // ===== STATE =====
         let viewMode = 'quarter'; // 'quarter' or 'trimester'
@@ -361,11 +364,32 @@
             };
         }
 
-        function describeArc(x, y, radius, startAngle, endAngle) {
-            const start = polarToCartesian(x, y, radius, endAngle);
-            const end = polarToCartesian(x, y, radius, startAngle);
+        // Create ring arc instead of pie wedge
+        function describeArc(x, y, innerRadius, outerRadius, startAngle, endAngle) {
+            const startOuter = polarToCartesian(x, y, outerRadius, startAngle);
+            const endOuter = polarToCartesian(x, y, outerRadius, endAngle);
+            const startInner = polarToCartesian(x, y, innerRadius, startAngle);
+            const endInner = polarToCartesian(x, y, innerRadius, endAngle);
+
             const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-            return `M ${x} ${y} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y} Z`;
+
+            return [
+                "M", startOuter.x, startOuter.y,
+                "A", outerRadius, outerRadius, 0, largeArcFlag, 1, endOuter.x, endOuter.y,
+                "L", endInner.x, endInner.y,
+                "A", innerRadius, innerRadius, 0, largeArcFlag, 0, startInner.x, startInner.y,
+                "Z"
+            ].join(" ");
+        }
+
+        // Create path for curved text
+        function describeTextArc(x, y, radius, startAngle, endAngle, reverse = false) {
+            const start = polarToCartesian(x, y, radius, reverse ? endAngle : startAngle);
+            const end = polarToCartesian(x, y, radius, reverse ? startAngle : endAngle);
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+            const sweepFlag = reverse ? "0" : "1";
+
+            return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} ${sweepFlag} ${end.x} ${end.y}`;
         }
 
         function getLabelPosition(centerX, centerY, radius, startAngle, endAngle) {
@@ -373,33 +397,34 @@
             return polarToCartesian(centerX, centerY, radius, midAngle);
         }
 
+        // Check if text should be reversed to stay upright
+        function shouldReverseText(startAngle, endAngle) {
+            const midAngle = (startAngle + endAngle) / 2;
+            // Reverse if in bottom half (90° to 270°)
+            return midAngle > 90 && midAngle < 270;
+        }
+
         // ===== RENDERING =====
         function renderCalendar() {
             const container = document.getElementById('zoomGroup');
+            const pathsContainer = document.getElementById('textPaths');
             let html = '';
-
-            // Always render full year structure
-            // Level 0: Year view shows months
-            // Level 1+: Shows more detail based on zoom
+            let paths = '';
 
             if (zoomLevel === 0) {
-                // Year view: show all 12 months
                 html += renderYearView();
             } else if (zoomLevel === 1) {
-                // Group view: show months with weeks
                 html += renderGroupView();
             } else if (zoomLevel === 2) {
-                // Month view: show weeks with days
                 html += renderMonthView();
             } else if (zoomLevel === 3) {
-                // Week view: show days
                 html += renderWeekView();
             } else if (zoomLevel === 4) {
-                // Day view: show hours/details
                 html += renderDayView();
             }
 
             container.innerHTML = html;
+            pathsContainer.innerHTML = paths;
             attachEventHandlers();
             applyZoomTransform();
         }
@@ -407,6 +432,7 @@
         function renderYearView() {
             let html = '';
             const degreesPerMonth = 30;
+            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
             monthNames.forEach((monthName, index) => {
                 const startAngle = index * degreesPerMonth;
@@ -415,15 +441,20 @@
                 const group = getCurrentGroups()[groupKey];
                 const color = group.color;
 
-                const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, startAngle, endAngle);
-                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.75, startAngle, endAngle);
+                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, startAngle, endAngle);
+
+                // Create curved text path
+                const textPathId = `text-path-${index}`;
+                const reverse = shouldReverseText(startAngle, endAngle);
+                const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius, startAngle, endAngle, reverse);
 
                 html += `<path class="segment ${color}" data-type="month" data-index="${index}" d="${path}" />`;
-                html += `<text class="label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${monthAbbrev[index]}</text>`;
+                html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
+                html += `<text class="label"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[index]}</textPath></text>`;
             });
 
             // Center circle
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="rgba(255,255,255,0.9)" stroke="#333" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 15}" text-anchor="middle">${YEAR}</text>`;
 
             return html;
@@ -434,6 +465,7 @@
             const groups = getCurrentGroups();
             const groupKey = Object.keys(groups)[focusPath[0]];
             const group = groups[groupKey];
+            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
             const numMonths = group.months.length;
             const totalAngle = viewMode === 'quarter' ? 90 : 120;
@@ -449,7 +481,7 @@
                 const mGroup = getCurrentGroups()[mGroupKey];
                 const isInFocus = group.months.includes(index);
 
-                const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, mStartAngle, mEndAngle);
+                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, mStartAngle, mEndAngle);
                 const classes = `segment ${mGroup.color} ${!isInFocus ? 'context' : ''}`;
 
                 html += `<path class="${classes}" data-type="month-bg" d="${path}" />`;
@@ -466,18 +498,24 @@
                     const weekStart = monthStart + (weekIdx * degreesPerWeek);
                     const weekEnd = weekStart + degreesPerWeek;
 
-                    const path = describeArc(CENTER_X, CENTER_Y, BASE_RADIUS, weekStart, weekEnd);
-                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.65, weekStart, weekEnd);
+                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, weekStart, weekEnd);
+                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, weekStart, weekEnd);
 
-                    html += `<path class="segment month-${monthIndex + 1}" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
+                    // Use group color instead of month-specific color for consistency
+                    html += `<path class="segment ${group.color}" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
                     html += `<text class="week-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</text>`;
                 });
 
-                const monthLabelPos = getLabelPosition(CENTER_X, CENTER_Y, BASE_RADIUS * 0.85, monthStart, monthEnd);
-                html += `<text class="month-name" x="${monthLabelPos.x}" y="${monthLabelPos.y}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
+                // Add month name with curved text
+                const textPathId = `month-path-${monthIndex}`;
+                const reverse = shouldReverseText(monthStart, monthEnd);
+                const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius + 60, monthStart, monthEnd, reverse);
+
+                html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
+                html += `<text class="month-name"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath></text>`;
             });
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="80" fill="white" stroke="#333" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="rgba(255,255,255,0.9)" stroke="#333" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${group.label}</text>`;
             html += `<text class="label" style="font-size: 18px; fill: #666;" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
 
@@ -540,6 +578,7 @@
 
         function applyZoomTransform() {
             const zoomGroup = document.getElementById('zoomGroup');
+            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
             if (zoomLevel === 0) {
                 // No zoom, no rotation
@@ -560,11 +599,7 @@
                 // Scale to zoom in
                 const scale = viewMode === 'quarter' ? 3.5 : 2.8;
 
-                // Calculate pan: after rotation & scale, the arc center (at mid-radius) needs to be centered
-                // Mid-radius point of the arc
-                const midRadius = BASE_RADIUS * 0.6;
-                // After scale and rotation, this point is at (CENTER_X, CENTER_Y - midRadius * scale)
-                // To center it at (CENTER_X, CENTER_Y), translate by (0, midRadius * scale)
+                // Pan to center the arc at mid-radius
                 const panY = midRadius * scale;
 
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
@@ -590,20 +625,17 @@
                 const scale = 8;
 
                 // Pan to center the month's arc
-                const midRadius = BASE_RADIUS * 0.6;
                 const panY = midRadius * scale;
 
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
             } else if (zoomLevel === 3) {
                 // Zoom to week (placeholder)
                 const scale = 15;
-                const midRadius = BASE_RADIUS * 0.6;
                 const panY = midRadius * scale;
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             } else if (zoomLevel === 4) {
                 // Zoom to day (placeholder)
                 const scale = 30;
-                const midRadius = BASE_RADIUS * 0.6;
                 const panY = midRadius * scale;
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             }
