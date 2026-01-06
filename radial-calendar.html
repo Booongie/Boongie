@@ -258,13 +258,6 @@
             stroke-width: 3;
         }
 
-        .month-boundary {
-            stroke: var(--text-secondary);
-            stroke-width: 1.5;
-            stroke-dasharray: 4, 4;
-            fill: none;
-        }
-
         /* Labels */
         .label {
             font-size: 14px;
@@ -288,7 +281,7 @@
         }
 
         .day-label {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
             fill: var(--text-primary);
             pointer-events: none;
@@ -410,15 +403,16 @@
         const CENTER_X = 500;
         const CENTER_Y = 500;
         const OUTER_RADIUS = 400;
-        const INNER_RADIUS = 280; // Thinner ring for better day visibility
+        const INNER_RADIUS = 280;
+        const GAP_DEGREES = 1.5; // Gap size in degrees between major segments
 
         // ===== STATE =====
         let theme = 'light';
-        let viewMode = 'quarter'; // 'quarter' or 'trimester'
-        let weekStart = 'sunday'; // 'sunday' or 'monday'
-        let zoomLevel = 0; // 0=year, 1=quarter/trimester, 2=month, 3=week, 4=day
+        let viewMode = 'quarter';
+        let weekStart = 'sunday';
+        let zoomLevel = 0;
         let focusPath = [];
-        let currentRotation = 0; // Track current calendar rotation for text counter-rotation
+        let currentRotation = 0;
 
         // ===== DATA =====
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -440,7 +434,6 @@
             t3: { label: 'T3', months: [8, 9, 10, 11], startAngle: 240 }
         };
 
-        // Get current date info
         const now = new Date();
         const TODAY_MONTH = now.getMonth();
         const TODAY_DAY = now.getDate();
@@ -459,61 +452,48 @@
             return null;
         }
 
-        // Calculate week number based on week start preference
+        // Get week number for a date
         function getWeekNumber(date) {
-            const startOfYear = new Date(YEAR, 0, 1);
-            const startDayOfWeek = startOfYear.getDay(); // 0=Sun, 1=Mon, etc.
+            const jan1 = new Date(YEAR, 0, 1);
+            const startDay = jan1.getDay();
+            const weekStartOffset = weekStart === 'monday' ? (startDay === 0 ? 6 : startDay - 1) : startDay;
 
-            const adjustedStart = weekStart === 'monday' ?
-                (startDayOfWeek === 0 ? 6 : startDayOfWeek - 1) :
-                startDayOfWeek;
-
-            // Days until first week boundary
-            const daysToFirstWeek = (7 - adjustedStart) % 7;
+            const daysToFirstWeek = (7 - weekStartOffset) % 7;
             const firstWeekEnd = new Date(YEAR, 0, 1 + daysToFirstWeek);
 
-            if (date < firstWeekEnd) {
-                return 1;
-            }
+            if (date < firstWeekEnd) return 1;
 
-            const daysSinceFirstWeek = Math.floor((date - firstWeekEnd) / (1000 * 60 * 60 * 24));
-            return Math.floor(daysSinceFirstWeek / 7) + 2;
+            const daysSince = Math.floor((date - firstWeekEnd) / (86400000));
+            return Math.floor(daysSince / 7) + 2;
         }
 
-        // Get all weeks in a month
-        function getWeeksForMonth(monthIndex) {
-            const weeks = [];
-            const daysInMonth = monthDays[monthIndex];
+        // Get all days in a month with week numbers
+        function getDaysInMonth(monthIndex) {
+            const days = [];
+            const numDays = monthDays[monthIndex];
 
-            for (let day = 1; day <= daysInMonth; day++) {
+            for (let day = 1; day <= numDays; day++) {
                 const date = new Date(YEAR, monthIndex, day);
                 const weekNum = getWeekNumber(date);
-                if (!weeks.includes(weekNum)) {
-                    weeks.push(weekNum);
-                }
-            }
+                const dayOfWeek = date.getDay();
 
-            return weeks;
-        }
-
-        // Get day-level data for a week in a month
-        function getDaysForWeek(weekNum, monthIndex) {
-            const days = [];
-            const daysInMonth = monthDays[monthIndex];
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(YEAR, monthIndex, day);
-                if (getWeekNumber(date) === weekNum) {
-                    days.push({
-                        day,
-                        monthIndex,
-                        weekNum,
-                        date
-                    });
-                }
+                days.push({
+                    day,
+                    monthIndex,
+                    weekNum,
+                    dayOfWeek,
+                    date
+                });
             }
 
             return days;
+        }
+
+        // Get unique weeks in a month
+        function getWeeksForMonth(monthIndex) {
+            const days = getDaysInMonth(monthIndex);
+            const weeks = [...new Set(days.map(d => d.weekNum))];
+            return weeks.sort((a, b) => a - b);
         }
 
         // ===== SVG HELPERS =====
@@ -557,15 +537,10 @@
         }
 
         function shouldReverseText(startAngle, endAngle) {
-            const midAngle = (startAngle + endAngle) / 2;
-            return midAngle > 90 && midAngle < 270;
-        }
-
-        // Draw dotted line for month boundary mid-week
-        function describeRadialLine(x, y, innerRadius, outerRadius, angle) {
-            const inner = polarToCartesian(x, y, innerRadius, angle);
-            const outer = polarToCartesian(x, y, outerRadius, angle);
-            return `M ${inner.x} ${inner.y} L ${outer.x} ${outer.y}`;
+            // Adjusted to account for current rotation
+            const midAngle = (startAngle + endAngle) / 2 + currentRotation;
+            const normalizedAngle = ((midAngle % 360) + 360) % 360;
+            return normalizedAngle > 90 && normalizedAngle < 270;
         }
 
         // ===== RENDERING =====
@@ -592,34 +567,36 @@
 
         function renderYearView() {
             let html = '';
-            const degreesPerMonth = 30;
+            const groups = getCurrentGroups();
+            const numGroups = Object.keys(groups).length;
+            const degreesPerGroup = 360 / numGroups;
             const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
-            monthNames.forEach((monthName, index) => {
-                const startAngle = index * degreesPerMonth;
-                const endAngle = (index + 1) * degreesPerMonth;
+            Object.values(groups).forEach((group, groupIdx) => {
+                const groupStart = groupIdx * degreesPerGroup + GAP_DEGREES / 2;
+                const groupEnd = (groupIdx + 1) * degreesPerGroup - GAP_DEGREES / 2;
+                const groupAngle = groupEnd - groupStart;
+                const degreesPerMonth = groupAngle / group.months.length;
 
-                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, startAngle, endAngle);
+                group.months.forEach((monthIndex, monthIdx) => {
+                    const monthStart = groupStart + (monthIdx * degreesPerMonth) + GAP_DEGREES / 2;
+                    const monthEnd = groupStart + ((monthIdx + 1) * degreesPerMonth) - GAP_DEGREES / 2;
 
-                // Check if current date
-                const isCurrentMonth = index === TODAY_MONTH;
-                const currentClass = isCurrentMonth ? 'current-date' : '';
+                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, monthStart, monthEnd);
 
-                // Create curved text path
-                const textPathId = `text-path-${index}`;
-                const reverse = shouldReverseText(startAngle, endAngle);
-                const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius, startAngle, endAngle, reverse);
+                    const isCurrentMonth = monthIndex === TODAY_MONTH;
+                    const currentClass = isCurrentMonth ? 'current-date' : '';
 
-                html += `<path class="segment ${currentClass}" data-type="month" data-index="${index}" d="${path}" />`;
-                html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
+                    const textPathId = `text-path-${monthIndex}`;
+                    const reverse = shouldReverseText(monthStart, monthEnd);
+                    const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius, monthStart, monthEnd, reverse);
 
-                // Add text with counter-rotation transform
-                html += `<text class="label" transform="rotate(${-currentRotation} ${CENTER_X} ${CENTER_Y})">
-                    <textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[index]}</textPath>
-                </text>`;
+                    html += `<path class="segment ${currentClass}" data-type="month" data-index="${monthIndex}" d="${path}" />`;
+                    html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
+                    html += `<text class="label"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[monthIndex]}</textPath></text>`;
+                });
             });
 
-            // Center circle
             html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 15}" text-anchor="middle">${YEAR}</text>`;
 
@@ -635,25 +612,25 @@
 
             const numMonths = group.months.length;
             const totalAngle = viewMode === 'quarter' ? 90 : 120;
-            const degreesPerMonth = totalAngle / numMonths;
             const startAngle = group.startAngle;
 
-            // Render all months for context
-            const degreesPerMonthYear = 30;
-            monthNames.forEach((monthName, index) => {
-                const mStartAngle = index * degreesPerMonthYear;
-                const mEndAngle = (index + 1) * degreesPerMonthYear;
-                const isInFocus = group.months.includes(index);
-
-                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, mStartAngle, mEndAngle);
-                const classes = `segment ${!isInFocus ? 'context' : ''}`;
-
-                html += `<path class="${classes}" data-type="month-bg" d="${path}" />`;
+            // Context months (faded)
+            const numGroups = Object.keys(groups).length;
+            const degreesPerGroup = 360 / numGroups;
+            Object.values(groups).forEach((g, idx) => {
+                const isInFocus = g.label === group.label;
+                if (!isInFocus) {
+                    const gStart = idx * degreesPerGroup + GAP_DEGREES / 2;
+                    const gEnd = (idx + 1) * degreesPerGroup - GAP_DEGREES / 2;
+                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, gStart, gEnd);
+                    html += `<path class="segment context" data-type="month-bg" d="${path}" />`;
+                }
             });
 
-            // Render focused group with week details
+            // Focused group with week details
+            const degreesPerMonth = (totalAngle - (GAP_DEGREES * numMonths)) / numMonths;
             group.months.forEach((monthIndex, idx) => {
-                const monthStart = startAngle + (idx * degreesPerMonth);
+                const monthStart = startAngle + (idx * (degreesPerMonth + GAP_DEGREES)) + GAP_DEGREES / 2;
                 const monthEnd = monthStart + degreesPerMonth;
                 const weeks = getWeeksForMonth(monthIndex);
                 const degreesPerWeek = degreesPerMonth / weeks.length;
@@ -666,36 +643,15 @@
                     const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, weekStart, weekEnd);
 
                     html += `<path class="segment" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
-
-                    // Week label with counter-rotation
-                    html += `<text class="week-label" transform="rotate(${-currentRotation} ${labelPos.x} ${labelPos.y})">
-                        <tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</tspan>
-                    </text>`;
-
-                    // Check if month boundary falls mid-week
-                    if (weekIdx < weeks.length - 1) {
-                        const nextWeek = weeks[weekIdx + 1];
-                        const daysThisWeek = getDaysForWeek(weekNum, monthIndex);
-                        const daysNextWeek = getDaysForWeek(nextWeek, monthIndex);
-
-                        // If next week starts new month, draw dotted boundary
-                        if (daysNextWeek.length > 0 && daysNextWeek[0].monthIndex !== monthIndex) {
-                            const boundaryAngle = weekEnd;
-                            const boundaryLine = describeRadialLine(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, boundaryAngle);
-                            html += `<path class="month-boundary" d="${boundaryLine}" />`;
-                        }
-                    }
+                    html += `<text class="week-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</tspan></text>`;
                 });
 
-                // Month name with curved text
                 const textPathId = `month-path-${monthIndex}`;
                 const reverse = shouldReverseText(monthStart, monthEnd);
-                const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius + 60, monthStart, monthEnd, reverse);
+                const textPath = describeTextArc(CENTER_X, CENTER_Y, OUTER_RADIUS + 30, monthStart, monthEnd, reverse);
 
                 html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
-                html += `<text class="month-name" transform="rotate(${-currentRotation} ${CENTER_X} ${CENTER_Y})">
-                    <textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath>
-                </text>`;
+                html += `<text class="month-name"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath></text>`;
             });
 
             html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
@@ -707,51 +663,52 @@
 
         function renderMonthView() {
             let html = '';
-            const groups = getCurrentGroups();
-            const groupKey = Object.keys(groups)[focusPath[0]];
-            const group = groups[groupKey];
             const monthIndex = focusPath[1];
+            const days = getDaysInMonth(monthIndex);
+            const weeks = getWeeksForMonth(monthIndex);
             const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
-            // Get all weeks that include days from this month
-            const weeks = getWeeksForMonth(monthIndex);
-            const totalAngle = 360; // Full circle for month view
-            const degreesPerWeek = totalAngle / weeks.length;
+            // Full circle divided into days with gaps between weeks
+            const totalDays = days.length;
+            const numWeeks = weeks.length;
+            const totalAngle = 360 - (GAP_DEGREES * numWeeks);
 
+            // Group days by week
+            const daysByWeek = {};
+            days.forEach(day => {
+                if (!daysByWeek[day.weekNum]) {
+                    daysByWeek[day.weekNum] = [];
+                }
+                daysByWeek[day.weekNum].push(day);
+            });
+
+            let currentAngle = 0;
             weeks.forEach((weekNum, weekIdx) => {
-                const weekStart = weekIdx * degreesPerWeek;
-                const weekEnd = weekStart + degreesPerWeek;
+                const weekDays = daysByWeek[weekNum];
+                const daysInWeek = weekDays.length;
+                const degreesForWeek = (daysInWeek / totalDays) * totalAngle;
+                const degreesPerDay = degreesForWeek / daysInWeek;
 
-                // Get days for this week
-                const days = getDaysForWeek(weekNum, monthIndex);
-                const degreesPerDay = degreesPerWeek / days.length;
+                // Add gap before week (except first)
+                if (weekIdx > 0) {
+                    currentAngle += GAP_DEGREES;
+                }
 
-                // Render each day segment
-                days.forEach((dayData, dayIdx) => {
-                    const dayStart = weekStart + (dayIdx * degreesPerDay);
-                    const dayEnd = dayStart + degreesPerDay;
+                weekDays.forEach((dayData, dayIdx) => {
+                    const dayStart = currentAngle;
+                    const dayEnd = currentAngle + degreesPerDay;
 
                     const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, dayStart, dayEnd);
                     const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, dayStart, dayEnd);
 
-                    // Check if current date
                     const isCurrentDate = dayData.monthIndex === TODAY_MONTH && dayData.day === TODAY_DAY;
                     const currentClass = isCurrentDate ? 'current-date' : '';
-                    const fadedClass = dayData.monthIndex !== monthIndex ? 'faded' : '';
 
-                    html += `<path class="segment ${currentClass} ${fadedClass}" data-type="day" data-day="${dayData.day}" d="${path}" />`;
+                    html += `<path class="segment ${currentClass}" data-type="day" data-day="${dayData.day}" d="${path}" />`;
+                    html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayData.day}</tspan></text>`;
 
-                    // Day label with counter-rotation
-                    html += `<text class="day-label ${fadedClass}" transform="rotate(${-currentRotation} ${labelPos.x} ${labelPos.y})">
-                        <tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayData.day}</tspan>
-                    </text>`;
+                    currentAngle += degreesPerDay;
                 });
-
-                // Week number on outer ring
-                const weekLabelPos = getLabelPosition(CENTER_X, CENTER_Y, OUTER_RADIUS + 30, weekStart, weekEnd);
-                html += `<text class="week-label" transform="rotate(${-currentRotation} ${weekLabelPos.x} ${weekLabelPos.y})">
-                    <tspan x="${weekLabelPos.x}" y="${weekLabelPos.y}" text-anchor="middle">W${weekNum}</tspan>
-                </text>`;
             });
 
             html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
@@ -818,7 +775,7 @@
                 const midAngle = group.startAngle + (totalAngle / 2);
 
                 const rotation = normalizeAngle(-midAngle);
-                currentRotation = -rotation; // Store for text counter-rotation
+                currentRotation = rotation;
 
                 const scale = viewMode === 'quarter' ? 3.5 : 2.8;
                 const panY = midRadius * scale;
@@ -838,7 +795,7 @@
                 const monthMidAngle = monthStartAngle + (degreesPerMonth / 2);
 
                 const rotation = normalizeAngle(-monthMidAngle);
-                currentRotation = -rotation;
+                currentRotation = rotation;
 
                 const scale = 5;
                 const panY = midRadius * scale;
@@ -877,7 +834,6 @@
             document.body.setAttribute('data-theme', theme);
             document.getElementById('lightBtn').classList.toggle('active', theme === 'light');
             document.getElementById('darkBtn').classList.toggle('active', theme === 'dark');
-            renderCalendar();
         }
 
         function switchMode(mode) {
