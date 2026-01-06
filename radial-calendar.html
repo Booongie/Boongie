@@ -5,6 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radial Calendar - 2026</title>
     <style>
+        :root {
+            /* Light Mode (Default) */
+            --bg-primary: #e0e0e0;
+            --bg-secondary: #f5f5f5;
+            --segment-default: #ffffff;
+            --segment-border: #dddddd;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --current-date-outline: #000000;
+            --ui-bg: rgba(255, 255, 255, 0.95);
+            --ui-shadow: rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --segment-default: #3a3a3a;
+            --segment-border: #555555;
+            --text-primary: #e0e0e0;
+            --text-secondary: #999999;
+            --current-date-outline: #ffffff;
+            --ui-bg: rgba(60, 60, 60, 0.95);
+            --ui-shadow: rgba(0, 0, 0, 0.5);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,13 +38,14 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-primary);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: #333;
+            color: var(--text-primary);
             overflow: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         .app-container {
@@ -37,11 +63,12 @@
             left: 30px;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--ui-bg);
             padding: 20px 15px;
             border-radius: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 32px var(--ui-shadow);
             z-index: 100;
+            transition: all 0.3s ease;
         }
 
         .zoom-levels {
@@ -72,7 +99,7 @@
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #667eea;
+            background: var(--text-secondary);
             margin-bottom: 8px;
             transition: all 0.3s ease;
         }
@@ -80,31 +107,92 @@
         .zoom-level.active .zoom-dot {
             width: 24px;
             height: 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            background: var(--text-primary);
+            box-shadow: 0 4px 12px var(--ui-shadow);
         }
 
         .zoom-label {
             font-size: 11px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             white-space: nowrap;
         }
 
-        /* Mode Toggle (Bottom Left) */
-        .mode-toggle {
+        /* Settings Gear Icon */
+        .settings-trigger {
             position: fixed;
             bottom: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 6px;
-            border-radius: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            display: inline-flex;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--ui-bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 32px var(--ui-shadow);
             z-index: 100;
+            transition: all 0.3s ease;
         }
 
-        .mode-btn {
+        .settings-trigger:hover {
+            transform: rotate(90deg);
+        }
+
+        .settings-trigger svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-primary);
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100vh;
+            background: var(--ui-bg);
+            box-shadow: -4px 0 32px var(--ui-shadow);
+            z-index: 99;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--text-primary);
+        }
+
+        .settings-group {
+            margin-bottom: 30px;
+        }
+
+        .settings-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .toggle-container {
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 25px;
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .toggle-btn {
             padding: 10px 20px;
             border: none;
             background: transparent;
@@ -113,12 +201,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            color: #666;
+            color: var(--text-secondary);
         }
 
-        .mode-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .toggle-btn.active {
+            background: var(--text-primary);
+            color: var(--bg-primary);
         }
 
         /* Main Calendar */
@@ -146,9 +234,10 @@
         /* Segments */
         .segment {
             cursor: pointer;
-            transition: opacity 0.3s ease, fill 0.3s ease;
-            stroke: white;
-            stroke-width: 2;
+            transition: opacity 0.3s ease, fill 0.3s ease, stroke 0.3s ease;
+            fill: var(--segment-default);
+            stroke: var(--segment-border);
+            stroke-width: 1.5;
         }
 
         .segment:hover:not(.faded) {
@@ -164,14 +253,26 @@
             opacity: 0.5;
         }
 
+        .segment.current-date {
+            stroke: var(--current-date-outline);
+            stroke-width: 3;
+        }
+
+        .month-boundary {
+            stroke: var(--text-secondary);
+            stroke-width: 1.5;
+            stroke-dasharray: 4, 4;
+            fill: none;
+        }
+
         /* Labels */
         .label {
             font-size: 14px;
             font-weight: 600;
-            fill: white;
+            fill: var(--text-primary);
             pointer-events: none;
             user-select: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s ease, fill 0.3s ease;
         }
 
         .label.faded {
@@ -181,15 +282,15 @@
         .week-label {
             font-size: 11px;
             font-weight: 600;
-            fill: white;
+            fill: var(--text-primary);
             pointer-events: none;
             user-select: none;
         }
 
         .day-label {
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 600;
-            fill: white;
+            fill: var(--text-primary);
             pointer-events: none;
             user-select: none;
         }
@@ -197,7 +298,7 @@
         .month-name {
             font-size: 16px;
             font-weight: 700;
-            fill: white;
+            fill: var(--text-primary);
             pointer-events: none;
             user-select: none;
         }
@@ -205,34 +306,10 @@
         .center-label {
             font-size: 48px;
             font-weight: 700;
-            fill: #333;
+            fill: var(--text-primary);
             pointer-events: none;
             user-select: none;
         }
-
-        /* Colors */
-        .q1-color { fill: #FF6B6B; }
-        .q2-color { fill: #4ECDC4; }
-        .q3-color { fill: #45B7D1; }
-        .q4-color { fill: #FFA07A; }
-
-        .t1-color { fill: #FF6B6B; }
-        .t2-color { fill: #4ECDC4; }
-        .t3-color { fill: #FFA07A; }
-
-        /* Month color variations */
-        .month-1 { fill: #FF6B6B; }
-        .month-2 { fill: #FF5252; }
-        .month-3 { fill: #FF3838; }
-        .month-4 { fill: #4ECDC4; }
-        .month-5 { fill: #3DB9B0; }
-        .month-6 { fill: #2DA59C; }
-        .month-7 { fill: #45B7D1; }
-        .month-8 { fill: #34A3BD; }
-        .month-9 { fill: #2390A9; }
-        .month-10 { fill: #FFA07A; }
-        .month-11 { fill: #FF8C66; }
-        .month-12 { fill: #FF7852; }
 
         /* Title */
         .title {
@@ -240,16 +317,17 @@
             top: 30px;
             left: 50%;
             transform: translateX(-50%);
-            color: white;
+            color: var(--text-primary);
             font-size: 2em;
             font-weight: 300;
             letter-spacing: 2px;
             z-index: 50;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 2px 8px var(--ui-shadow);
+            transition: color 0.3s ease;
         }
     </style>
 </head>
-<body>
+<body data-theme="light">
     <div class="app-container">
         <h1 class="title" id="title">RADIAL CALENDAR 2026</h1>
 
@@ -279,10 +357,40 @@
             </div>
         </div>
 
-        <!-- Mode Toggle -->
-        <div class="mode-toggle">
-            <button class="mode-btn active" id="quarterBtn">Quarter</button>
-            <button class="mode-btn" id="trimesterBtn">Trimester</button>
+        <!-- Settings Trigger (Gear Icon) -->
+        <div class="settings-trigger" id="settingsTrigger">
+            <svg viewBox="0 0 24 24">
+                <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+            </svg>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-header">Settings</div>
+
+            <div class="settings-group">
+                <span class="settings-label">Theme</span>
+                <div class="toggle-container">
+                    <button class="toggle-btn active" id="lightBtn">Light</button>
+                    <button class="toggle-btn" id="darkBtn">Dark</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <span class="settings-label">View Mode</span>
+                <div class="toggle-container">
+                    <button class="toggle-btn active" id="quarterBtn">Quarter</button>
+                    <button class="toggle-btn" id="trimesterBtn">Trimester</button>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <span class="settings-label">Week Start</span>
+                <div class="toggle-container">
+                    <button class="toggle-btn active" id="sundayBtn">Sunday</button>
+                    <button class="toggle-btn" id="mondayBtn">Monday</button>
+                </div>
+            </div>
         </div>
 
         <!-- Calendar SVG -->
@@ -302,31 +410,40 @@
         const CENTER_X = 500;
         const CENTER_Y = 500;
         const OUTER_RADIUS = 400;
-        const INNER_RADIUS = 250; // Create ring instead of full pie
+        const INNER_RADIUS = 280; // Thinner ring for better day visibility
 
         // ===== STATE =====
+        let theme = 'light';
         let viewMode = 'quarter'; // 'quarter' or 'trimester'
+        let weekStart = 'sunday'; // 'sunday' or 'monday'
         let zoomLevel = 0; // 0=year, 1=quarter/trimester, 2=month, 3=week, 4=day
-        let focusPath = []; // e.g., [0] for Q1, [0, 1] for Q1->February, [0, 1, 2] for Q1->Feb->Week3
+        let focusPath = [];
+        let currentRotation = 0; // Track current calendar rotation for text counter-rotation
 
         // ===== DATA =====
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
         const monthAbbrev = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         const quarters = {
-            q1: { label: 'Q1', months: [0, 1, 2], color: 'q1-color', startAngle: 0 },
-            q2: { label: 'Q2', months: [3, 4, 5], color: 'q2-color', startAngle: 90 },
-            q3: { label: 'Q3', months: [6, 7, 8], color: 'q3-color', startAngle: 180 },
-            q4: { label: 'Q4', months: [9, 10, 11], color: 'q4-color', startAngle: 270 }
+            q1: { label: 'Q1', months: [0, 1, 2], startAngle: 0 },
+            q2: { label: 'Q2', months: [3, 4, 5], startAngle: 90 },
+            q3: { label: 'Q3', months: [6, 7, 8], startAngle: 180 },
+            q4: { label: 'Q4', months: [9, 10, 11], startAngle: 270 }
         };
 
         const trimesters = {
-            t1: { label: 'T1', months: [0, 1, 2, 3], color: 't1-color', startAngle: 0 },
-            t2: { label: 'T2', months: [4, 5, 6, 7], color: 't2-color', startAngle: 120 },
-            t3: { label: 'T3', months: [8, 9, 10, 11], color: 't3-color', startAngle: 240 }
+            t1: { label: 'T1', months: [0, 1, 2, 3], startAngle: 0 },
+            t2: { label: 'T2', months: [4, 5, 6, 7], startAngle: 120 },
+            t3: { label: 'T3', months: [8, 9, 10, 11], startAngle: 240 }
         };
+
+        // Get current date info
+        const now = new Date();
+        const TODAY_MONTH = now.getMonth();
+        const TODAY_DAY = now.getDate();
 
         function getCurrentGroups() {
             return viewMode === 'quarter' ? quarters : trimesters;
@@ -342,17 +459,61 @@
             return null;
         }
 
+        // Calculate week number based on week start preference
+        function getWeekNumber(date) {
+            const startOfYear = new Date(YEAR, 0, 1);
+            const startDayOfWeek = startOfYear.getDay(); // 0=Sun, 1=Mon, etc.
+
+            const adjustedStart = weekStart === 'monday' ?
+                (startDayOfWeek === 0 ? 6 : startDayOfWeek - 1) :
+                startDayOfWeek;
+
+            // Days until first week boundary
+            const daysToFirstWeek = (7 - adjustedStart) % 7;
+            const firstWeekEnd = new Date(YEAR, 0, 1 + daysToFirstWeek);
+
+            if (date < firstWeekEnd) {
+                return 1;
+            }
+
+            const daysSinceFirstWeek = Math.floor((date - firstWeekEnd) / (1000 * 60 * 60 * 24));
+            return Math.floor(daysSinceFirstWeek / 7) + 2;
+        }
+
+        // Get all weeks in a month
         function getWeeksForMonth(monthIndex) {
             const weeks = [];
-            let weekNum = 1;
-            for (let i = 0; i < monthIndex; i++) {
-                weekNum += Math.ceil(monthDays[i] / 7);
+            const daysInMonth = monthDays[monthIndex];
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(YEAR, monthIndex, day);
+                const weekNum = getWeekNumber(date);
+                if (!weeks.includes(weekNum)) {
+                    weeks.push(weekNum);
+                }
             }
-            const numWeeks = Math.ceil(monthDays[monthIndex] / 7);
-            for (let i = 0; i < numWeeks; i++) {
-                weeks.push(weekNum + i);
-            }
+
             return weeks;
+        }
+
+        // Get day-level data for a week in a month
+        function getDaysForWeek(weekNum, monthIndex) {
+            const days = [];
+            const daysInMonth = monthDays[monthIndex];
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(YEAR, monthIndex, day);
+                if (getWeekNumber(date) === weekNum) {
+                    days.push({
+                        day,
+                        monthIndex,
+                        weekNum,
+                        date
+                    });
+                }
+            }
+
+            return days;
         }
 
         // ===== SVG HELPERS =====
@@ -364,7 +525,6 @@
             };
         }
 
-        // Create ring arc instead of pie wedge
         function describeArc(x, y, innerRadius, outerRadius, startAngle, endAngle) {
             const startOuter = polarToCartesian(x, y, outerRadius, startAngle);
             const endOuter = polarToCartesian(x, y, outerRadius, endAngle);
@@ -382,7 +542,6 @@
             ].join(" ");
         }
 
-        // Create path for curved text
         function describeTextArc(x, y, radius, startAngle, endAngle, reverse = false) {
             const start = polarToCartesian(x, y, radius, reverse ? endAngle : startAngle);
             const end = polarToCartesian(x, y, radius, reverse ? startAngle : endAngle);
@@ -397,19 +556,22 @@
             return polarToCartesian(centerX, centerY, radius, midAngle);
         }
 
-        // Check if text should be reversed to stay upright
         function shouldReverseText(startAngle, endAngle) {
             const midAngle = (startAngle + endAngle) / 2;
-            // Reverse if in bottom half (90° to 270°)
             return midAngle > 90 && midAngle < 270;
+        }
+
+        // Draw dotted line for month boundary mid-week
+        function describeRadialLine(x, y, innerRadius, outerRadius, angle) {
+            const inner = polarToCartesian(x, y, innerRadius, angle);
+            const outer = polarToCartesian(x, y, outerRadius, angle);
+            return `M ${inner.x} ${inner.y} L ${outer.x} ${outer.y}`;
         }
 
         // ===== RENDERING =====
         function renderCalendar() {
             const container = document.getElementById('zoomGroup');
-            const pathsContainer = document.getElementById('textPaths');
             let html = '';
-            let paths = '';
 
             if (zoomLevel === 0) {
                 html += renderYearView();
@@ -424,7 +586,6 @@
             }
 
             container.innerHTML = html;
-            pathsContainer.innerHTML = paths;
             attachEventHandlers();
             applyZoomTransform();
         }
@@ -437,24 +598,29 @@
             monthNames.forEach((monthName, index) => {
                 const startAngle = index * degreesPerMonth;
                 const endAngle = (index + 1) * degreesPerMonth;
-                const groupKey = getGroupForMonth(index);
-                const group = getCurrentGroups()[groupKey];
-                const color = group.color;
 
                 const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, startAngle, endAngle);
+
+                // Check if current date
+                const isCurrentMonth = index === TODAY_MONTH;
+                const currentClass = isCurrentMonth ? 'current-date' : '';
 
                 // Create curved text path
                 const textPathId = `text-path-${index}`;
                 const reverse = shouldReverseText(startAngle, endAngle);
                 const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius, startAngle, endAngle, reverse);
 
-                html += `<path class="segment ${color}" data-type="month" data-index="${index}" d="${path}" />`;
+                html += `<path class="segment ${currentClass}" data-type="month" data-index="${index}" d="${path}" />`;
                 html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
-                html += `<text class="label"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[index]}</textPath></text>`;
+
+                // Add text with counter-rotation transform
+                html += `<text class="label" transform="rotate(${-currentRotation} ${CENTER_X} ${CENTER_Y})">
+                    <textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[index]}</textPath>
+                </text>`;
             });
 
             // Center circle
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="rgba(255,255,255,0.9)" stroke="#333" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 15}" text-anchor="middle">${YEAR}</text>`;
 
             return html;
@@ -472,17 +638,15 @@
             const degreesPerMonth = totalAngle / numMonths;
             const startAngle = group.startAngle;
 
-            // Render all months in the year for context
+            // Render all months for context
             const degreesPerMonthYear = 30;
             monthNames.forEach((monthName, index) => {
                 const mStartAngle = index * degreesPerMonthYear;
                 const mEndAngle = (index + 1) * degreesPerMonthYear;
-                const mGroupKey = getGroupForMonth(index);
-                const mGroup = getCurrentGroups()[mGroupKey];
                 const isInFocus = group.months.includes(index);
 
                 const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, mStartAngle, mEndAngle);
-                const classes = `segment ${mGroup.color} ${!isInFocus ? 'context' : ''}`;
+                const classes = `segment ${!isInFocus ? 'context' : ''}`;
 
                 html += `<path class="${classes}" data-type="month-bg" d="${path}" />`;
             });
@@ -501,54 +665,118 @@
                     const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, weekStart, weekEnd);
                     const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, weekStart, weekEnd);
 
-                    // Use group color instead of month-specific color for consistency
-                    html += `<path class="segment ${group.color}" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
-                    html += `<text class="week-label" x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</text>`;
+                    html += `<path class="segment" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
+
+                    // Week label with counter-rotation
+                    html += `<text class="week-label" transform="rotate(${-currentRotation} ${labelPos.x} ${labelPos.y})">
+                        <tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</tspan>
+                    </text>`;
+
+                    // Check if month boundary falls mid-week
+                    if (weekIdx < weeks.length - 1) {
+                        const nextWeek = weeks[weekIdx + 1];
+                        const daysThisWeek = getDaysForWeek(weekNum, monthIndex);
+                        const daysNextWeek = getDaysForWeek(nextWeek, monthIndex);
+
+                        // If next week starts new month, draw dotted boundary
+                        if (daysNextWeek.length > 0 && daysNextWeek[0].monthIndex !== monthIndex) {
+                            const boundaryAngle = weekEnd;
+                            const boundaryLine = describeRadialLine(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, boundaryAngle);
+                            html += `<path class="month-boundary" d="${boundaryLine}" />`;
+                        }
+                    }
                 });
 
-                // Add month name with curved text
+                // Month name with curved text
                 const textPathId = `month-path-${monthIndex}`;
                 const reverse = shouldReverseText(monthStart, monthEnd);
                 const textPath = describeTextArc(CENTER_X, CENTER_Y, midRadius + 60, monthStart, monthEnd, reverse);
 
                 html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
-                html += `<text class="month-name"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath></text>`;
+                html += `<text class="month-name" transform="rotate(${-currentRotation} ${CENTER_X} ${CENTER_Y})">
+                    <textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath>
+                </text>`;
             });
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="rgba(255,255,255,0.9)" stroke="#333" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${group.label}</text>`;
-            html += `<text class="label" style="font-size: 18px; fill: #666;" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
+            html += `<text class="label" style="font-size: 18px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
 
             return html;
         }
 
         function renderMonthView() {
             let html = '';
-            // TODO: Implement month view with weeks and days
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
-            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Month</text>`;
+            const groups = getCurrentGroups();
+            const groupKey = Object.keys(groups)[focusPath[0]];
+            const group = groups[groupKey];
+            const monthIndex = focusPath[1];
+            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+
+            // Get all weeks that include days from this month
+            const weeks = getWeeksForMonth(monthIndex);
+            const totalAngle = 360; // Full circle for month view
+            const degreesPerWeek = totalAngle / weeks.length;
+
+            weeks.forEach((weekNum, weekIdx) => {
+                const weekStart = weekIdx * degreesPerWeek;
+                const weekEnd = weekStart + degreesPerWeek;
+
+                // Get days for this week
+                const days = getDaysForWeek(weekNum, monthIndex);
+                const degreesPerDay = degreesPerWeek / days.length;
+
+                // Render each day segment
+                days.forEach((dayData, dayIdx) => {
+                    const dayStart = weekStart + (dayIdx * degreesPerDay);
+                    const dayEnd = dayStart + degreesPerDay;
+
+                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, dayStart, dayEnd);
+                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, dayStart, dayEnd);
+
+                    // Check if current date
+                    const isCurrentDate = dayData.monthIndex === TODAY_MONTH && dayData.day === TODAY_DAY;
+                    const currentClass = isCurrentDate ? 'current-date' : '';
+                    const fadedClass = dayData.monthIndex !== monthIndex ? 'faded' : '';
+
+                    html += `<path class="segment ${currentClass} ${fadedClass}" data-type="day" data-day="${dayData.day}" d="${path}" />`;
+
+                    // Day label with counter-rotation
+                    html += `<text class="day-label ${fadedClass}" transform="rotate(${-currentRotation} ${labelPos.x} ${labelPos.y})">
+                        <tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayData.day}</tspan>
+                    </text>`;
+                });
+
+                // Week number on outer ring
+                const weekLabelPos = getLabelPosition(CENTER_X, CENTER_Y, OUTER_RADIUS + 30, weekStart, weekEnd);
+                html += `<text class="week-label" transform="rotate(${-currentRotation} ${weekLabelPos.x} ${weekLabelPos.y})">
+                    <tspan x="${weekLabelPos.x}" y="${weekLabelPos.y}" text-anchor="middle">W${weekNum}</tspan>
+                </text>`;
+            });
+
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
+            html += `<text class="label" style="font-size: 18px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
+
             return html;
         }
 
         function renderWeekView() {
             let html = '';
-            // TODO: Implement week view
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Week</text>`;
             return html;
         }
 
         function renderDayView() {
             let html = '';
-            // TODO: Implement day view
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="white" />`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Day</text>`;
             return html;
         }
 
         function attachEventHandlers() {
             if (zoomLevel === 0) {
-                // Year view: click month to zoom to group
                 document.querySelectorAll('[data-type="month"]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const monthIndex = parseInt(e.target.dataset.index);
@@ -559,7 +787,6 @@
                     });
                 });
             } else if (zoomLevel === 1) {
-                // Group view: click week to zoom to month
                 document.querySelectorAll('[data-type="week"]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const monthIndex = parseInt(e.target.dataset.month);
@@ -569,7 +796,6 @@
             }
         }
 
-        // Normalize rotation angle to shortest path (-180, 180]
         function normalizeAngle(angle) {
             while (angle > 180) angle -= 360;
             while (angle <= -180) angle += 360;
@@ -581,36 +807,29 @@
             const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
             if (zoomLevel === 0) {
-                // No zoom, no rotation
+                currentRotation = 0;
                 zoomGroup.style.transform = 'rotate(0deg) scale(1)';
             } else if (zoomLevel === 1) {
-                // Zoom to quarter/trimester
                 const groups = getCurrentGroups();
                 const groupKey = Object.keys(groups)[focusPath[0]];
                 const group = groups[groupKey];
 
-                // Calculate mid angle of the segment
                 const totalAngle = viewMode === 'quarter' ? 90 : 120;
                 const midAngle = group.startAngle + (totalAngle / 2);
 
-                // Rotate to center segment at 12 o'clock (shortest path)
                 const rotation = normalizeAngle(-midAngle);
+                currentRotation = -rotation; // Store for text counter-rotation
 
-                // Scale to zoom in
                 const scale = viewMode === 'quarter' ? 3.5 : 2.8;
-
-                // Pan to center the arc at mid-radius
                 const panY = midRadius * scale;
 
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
             } else if (zoomLevel === 2) {
-                // Zoom to month
                 const groups = getCurrentGroups();
                 const groupKey = Object.keys(groups)[focusPath[0]];
                 const group = groups[groupKey];
                 const monthIndex = focusPath[1];
 
-                // Calculate the month's position within the group
                 const numMonths = group.months.length;
                 const totalAngle = viewMode === 'quarter' ? 90 : 120;
                 const degreesPerMonth = totalAngle / numMonths;
@@ -618,26 +837,13 @@
                 const monthStartAngle = group.startAngle + (monthIndexInGroup * degreesPerMonth);
                 const monthMidAngle = monthStartAngle + (degreesPerMonth / 2);
 
-                // Rotate to center month at 12 o'clock (shortest path)
                 const rotation = normalizeAngle(-monthMidAngle);
+                currentRotation = -rotation;
 
-                // Scale to zoom in on month
-                const scale = 8;
-
-                // Pan to center the month's arc
+                const scale = 5;
                 const panY = midRadius * scale;
 
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
-            } else if (zoomLevel === 3) {
-                // Zoom to week (placeholder)
-                const scale = 15;
-                const panY = midRadius * scale;
-                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
-            } else if (zoomLevel === 4) {
-                // Zoom to day (placeholder)
-                const scale = 30;
-                const panY = midRadius * scale;
-                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             }
         }
 
@@ -650,19 +856,28 @@
         }
 
         function updateUI() {
-            // Update zoom slider
             document.querySelectorAll('.zoom-level').forEach(el => {
                 el.classList.toggle('active', parseInt(el.dataset.level) === zoomLevel);
             });
 
-            // Update title
             if (zoomLevel === 0) {
                 document.getElementById('title').textContent = 'RADIAL CALENDAR 2026';
             } else if (zoomLevel === 1) {
                 const groups = getCurrentGroups();
                 const groupKey = Object.keys(groups)[focusPath[0]];
                 document.getElementById('title').textContent = `${groups[groupKey].label} 2026`;
+            } else if (zoomLevel === 2) {
+                const monthIndex = focusPath[1];
+                document.getElementById('title').textContent = `${monthNames[monthIndex]} 2026`;
             }
+        }
+
+        function switchTheme(newTheme) {
+            theme = newTheme;
+            document.body.setAttribute('data-theme', theme);
+            document.getElementById('lightBtn').classList.toggle('active', theme === 'light');
+            document.getElementById('darkBtn').classList.toggle('active', theme === 'dark');
+            renderCalendar();
         }
 
         function switchMode(mode) {
@@ -673,66 +888,67 @@
             document.getElementById('trimesterBtn').classList.toggle('active', mode === 'trimester');
             document.getElementById('groupLabel').textContent = mode === 'quarter' ? 'Quarter' : 'Trimester';
 
-            // Reset to year view when switching modes
             zoomTo(0, []);
         }
 
-        // Get current date segments for smart navigation
+        function switchWeekStart(start) {
+            if (weekStart === start) return;
+            weekStart = start;
+
+            document.getElementById('sundayBtn').classList.toggle('active', start === 'sunday');
+            document.getElementById('mondayBtn').classList.toggle('active', start === 'monday');
+
+            renderCalendar();
+        }
+
         function getCurrentDateSegments() {
             const now = new Date();
-            const month = now.getMonth(); // 0-11 (0 = January)
-            const dayOfMonth = now.getDate(); // 1-31
+            const month = now.getMonth();
+            const dayOfMonth = now.getDate();
 
-            // Find which group (quarter/trimester) this month belongs to
             const groupKey = getGroupForMonth(month);
             const groups = getCurrentGroups();
             const groupIndex = Object.keys(groups).indexOf(groupKey);
 
-            // Calculate day of year
-            let dayOfYear = 0;
-            for (let i = 0; i < month; i++) {
-                dayOfYear += monthDays[i];
-            }
-            dayOfYear += dayOfMonth;
-
-            // Calculate week number (simplified - week 1 starts Jan 1)
-            const weekNum = Math.ceil(dayOfYear / 7);
+            const date = new Date(YEAR, month, dayOfMonth);
+            const weekNum = getWeekNumber(date);
 
             return {
-                groupIndex,     // 0-3 for quarters, 0-2 for trimesters
-                month,          // 0-11
-                weekNum,        // 1-52
-                dayOfMonth,     // 1-31
-                dayOfYear       // 1-365
+                groupIndex,
+                month,
+                weekNum,
+                dayOfMonth
             };
         }
 
         // Event listeners
+        document.getElementById('settingsTrigger').addEventListener('click', () => {
+            document.getElementById('settingsPanel').classList.toggle('open');
+        });
+
+        document.getElementById('lightBtn').addEventListener('click', () => switchTheme('light'));
+        document.getElementById('darkBtn').addEventListener('click', () => switchTheme('dark'));
         document.getElementById('quarterBtn').addEventListener('click', () => switchMode('quarter'));
         document.getElementById('trimesterBtn').addEventListener('click', () => switchMode('trimester'));
+        document.getElementById('sundayBtn').addEventListener('click', () => switchWeekStart('sunday'));
+        document.getElementById('mondayBtn').addEventListener('click', () => switchWeekStart('monday'));
 
         document.querySelectorAll('.zoom-level').forEach(el => {
             el.addEventListener('click', () => {
                 const targetLevel = parseInt(el.dataset.level);
 
                 if (targetLevel < zoomLevel) {
-                    // Zoom out
                     zoomTo(targetLevel, focusPath.slice(0, targetLevel));
                 } else if (targetLevel > zoomLevel) {
-                    // Zoom in - use current date to determine path
                     const current = getCurrentDateSegments();
 
                     if (targetLevel === 1) {
-                        // Zoom to current quarter/trimester
                         zoomTo(1, [current.groupIndex]);
                     } else if (targetLevel === 2) {
-                        // Zoom to current month
                         zoomTo(2, [current.groupIndex, current.month]);
                     } else if (targetLevel === 3) {
-                        // Zoom to current week
                         zoomTo(3, [current.groupIndex, current.month, current.weekNum]);
                     } else if (targetLevel === 4) {
-                        // Zoom to current day
                         zoomTo(4, [current.groupIndex, current.month, current.weekNum, current.dayOfMonth]);
                     }
                 }
@@ -742,7 +958,6 @@
         // Initialize
         renderCalendar();
         console.log('Radial Calendar 2026 initialized');
-        console.log('Click segments to zoom in, use slider to zoom out');
     </script>
 </body>
 </html>
