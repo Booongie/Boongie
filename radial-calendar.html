@@ -513,8 +513,17 @@
         const CENTER_X = 500;
         const CENTER_Y = 500;
         const OUTER_RADIUS = 400;
-        const INNER_RADIUS = 280;
-        const GAP_DEGREES = 1.5;
+        const INNER_RADIUS_BASE = 280;
+        const GAP_DEGREES = 4; // Increased for better visibility
+
+        // Progressive ring thinning based on zoom level
+        function getCurrentInnerRadius() {
+            if (zoomLevel === 0) return 280; // Year: 120px thick
+            if (zoomLevel === 1) return 300; // Quarter/Trimester: 100px thick
+            if (zoomLevel === 2) return 320; // Month: 80px thick
+            if (zoomLevel === 3) return 340; // Week: 60px thick
+            return 340; // Day: 60px thick
+        }
 
         // ===== STATE =====
         let theme = 'light';
@@ -700,7 +709,8 @@
             const groups = getCurrentGroups();
             const numGroups = Object.keys(groups).length;
             const degreesPerGroup = 360 / numGroups;
-            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             Object.values(groups).forEach((group, groupIdx) => {
                 const groupStart = groupIdx * degreesPerGroup + GAP_DEGREES / 2;
@@ -712,7 +722,7 @@
                     const monthStart = groupStart + (monthIdx * degreesPerMonth);
                     const monthEnd = groupStart + ((monthIdx + 1) * degreesPerMonth);
 
-                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, monthStart, monthEnd);
+                    const path = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, monthStart, monthEnd);
 
                     const isCurrentMonth = monthIndex === TODAY_MONTH;
                     const currentClass = isCurrentMonth ? 'current-date' : '';
@@ -727,12 +737,12 @@
 
                     // Add thin line between months (except at group boundaries)
                     if (monthIdx > 0) {
-                        html += `<path class="thin-line" d="${drawRadialLine(monthStart, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                        html += `<path class="thin-line" d="${drawRadialLine(monthStart, innerRadius, OUTER_RADIUS)}" />`;
                     }
                 });
             });
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${innerRadius - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 15}" text-anchor="middle">${YEAR}</text>`;
 
             return html;
@@ -743,7 +753,8 @@
             const groups = getCurrentGroups();
             const groupKey = Object.keys(groups)[focusPath[0]];
             const group = groups[groupKey];
-            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             const numMonths = group.months.length;
             const totalAngle = viewMode === 'quarter' ? 90 : 120;
@@ -757,12 +768,12 @@
                 if (!isInFocus) {
                     const gStart = idx * degreesPerGroup + GAP_DEGREES / 2;
                     const gEnd = (idx + 1) * degreesPerGroup - GAP_DEGREES / 2;
-                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, gStart, gEnd);
+                    const path = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, gStart, gEnd);
                     html += `<path class="segment context" data-type="month-bg" d="${path}" />`;
                 }
             });
 
-            // Focused group with months and week lines
+            // Focused group with months, weeks, and week numbers
             const degreesPerMonth = (totalAngle - (GAP_DEGREES * numMonths)) / numMonths;
             group.months.forEach((monthIndex, idx) => {
                 const monthStart = startAngle + (idx * (degreesPerMonth + GAP_DEGREES)) + GAP_DEGREES / 2;
@@ -771,15 +782,21 @@
                 const degreesPerWeek = degreesPerMonth / weeks.length;
 
                 // Draw month as single segment
-                const monthPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, monthStart, monthEnd);
+                const monthPath = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, monthStart, monthEnd);
                 html += `<path class="segment" data-type="month" data-index="${monthIndex}" d="${monthPath}" />`;
 
-                // Add thin lines between weeks
+                // Add thin lines between weeks AND week number labels
                 weeks.forEach((weekNum, weekIdx) => {
+                    const weekStart = monthStart + (weekIdx * degreesPerWeek);
+                    const weekEnd = weekStart + degreesPerWeek;
+
                     if (weekIdx > 0) {
-                        const lineAngle = monthStart + (weekIdx * degreesPerWeek);
-                        html += `<path class="thin-line" d="${drawRadialLine(lineAngle, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                        html += `<path class="thin-line" d="${drawRadialLine(weekStart, innerRadius, OUTER_RADIUS)}" />`;
                     }
+
+                    // Add week number label
+                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, weekStart, weekEnd);
+                    html += `<text class="week-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</tspan></text>`;
                 });
 
                 const textPathId = `month-path-${monthIndex}`;
@@ -790,7 +807,7 @@
                 html += `<text class="month-name"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthNames[monthIndex]}</textPath></text>`;
             });
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${innerRadius - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${group.label}</text>`;
             html += `<text class="label" style="font-size: 18px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
 
@@ -802,7 +819,8 @@
             const monthIndex = focusPath[1];
             const days = getDaysInMonth(monthIndex);
             const weeks = getWeeksForMonth(monthIndex);
-            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             const totalDays = days.length;
             const numWeeks = weeks.length;
@@ -833,7 +851,7 @@
                 const weekEnd = currentAngle + degreesForWeek;
 
                 // Draw week as single segment
-                const weekPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, weekStart, weekEnd);
+                const weekPath = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, weekStart, weekEnd);
                 html += `<path class="segment non-clickable" data-type="week-bg" data-week="${weekNum}" d="${weekPath}" />`;
 
                 weekDays.forEach((dayData, dayIdx) => {
@@ -849,14 +867,14 @@
 
                     // Add thin line between days (except first day of week)
                     if (dayIdx > 0) {
-                        html += `<path class="thin-line" d="${drawRadialLine(dayStart, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                        html += `<path class="thin-line" d="${drawRadialLine(dayStart, innerRadius, OUTER_RADIUS)}" />`;
                     }
 
                     currentAngle += degreesPerDay;
                 });
             });
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${innerRadius - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
             html += `<text class="label" style="font-size: 18px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 30}" text-anchor="middle">${YEAR}</text>`;
 
@@ -867,6 +885,8 @@
             let html = '';
             const weekNum = focusPath[2];
             const weekDays = getDaysInWeek(weekNum);
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             if (weekDays.length === 0) {
                 html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
@@ -874,56 +894,55 @@
                 return html;
             }
 
-            const degreesPerDay = (360 - (GAP_DEGREES * 7)) / 7;
+            // Show 7 days across 180° arc (left to right, top half of circle)
+            // Starting at 180° (left) and ending at 0° (right)
+            const totalArc = 180;
+            const degreesPerDay = (totalArc - (GAP_DEGREES * 6)) / 7; // 6 gaps between 7 days
             const [hourMin, hourMax] = hourRange;
             const hourCount = hourMax - hourMin;
-            const radiusRange = OUTER_RADIUS - INNER_RADIUS;
+            const radiusRange = OUTER_RADIUS - innerRadius;
             const radiusPerHour = radiusRange / hourCount;
 
-            // Render each day segment
-            let currentAngle = 0;
+            // Render each day segment from left to right
+            let currentAngle = 180; // Start at left (9 o'clock position)
             for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-                const dayStart = currentAngle + (dayIdx > 0 ? GAP_DEGREES / 2 : 0);
-                const dayEnd = currentAngle + degreesPerDay + (dayIdx < 6 ? GAP_DEGREES / 2 : 0);
-                currentAngle += degreesPerDay + GAP_DEGREES;
-
-                const dayData = weekDays[dayIdx];
-
-                // Find which day of week this segment represents
-                const targetDayOfWeek = (weekStart === 'sunday' ? dayIdx : (dayIdx + 1) % 7);
+                // Determine which day of week this is
+                const targetDayOfWeek = weekStart === 'sunday' ? dayIdx : (dayIdx + 1) % 7;
                 const actualDayData = weekDays.find(d => d.dayOfWeek === targetDayOfWeek) || null;
 
+                const dayStart = currentAngle;
+                const dayEnd = currentAngle + degreesPerDay;
+
                 // Draw day segment background
-                const dayPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, dayStart, dayEnd);
+                const dayPath = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, dayStart, dayEnd);
                 const isCurrentDay = actualDayData && actualDayData.monthIndex === TODAY_MONTH && actualDayData.day === TODAY_DAY;
                 const currentClass = isCurrentDay ? 'current-date' : '';
                 html += `<path class="segment non-clickable ${currentClass}" data-type="day-bg" data-day="${dayIdx}" d="${dayPath}" />`;
 
                 // Add thin lines between hours (concentric arcs)
                 for (let h = 1; h < hourCount; h++) {
-                    const radius = INNER_RADIUS + (h * radiusPerHour);
+                    const radius = innerRadius + (h * radiusPerHour);
                     html += `<path class="thin-line" d="${drawArcLine(radius, dayStart, dayEnd)}" />`;
                 }
 
                 // Day label
-                const labelRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
-                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, labelRadius, dayStart, dayEnd);
-                const dayLabel = actualDayData ? `${dayNames[actualDayData.dayOfWeek]} ${actualDayData.day}` : dayNames[targetDayOfWeek];
-                html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayLabel}</tspan></text>`;
+                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, dayStart, dayEnd);
+                const dayLabel = actualDayData ? `${dayNames[actualDayData.dayOfWeek].substring(0, 3)} ${actualDayData.day}` : dayNames[targetDayOfWeek].substring(0, 3);
+                html += `<text class="day-label" style="font-size: 11px;"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayLabel}</tspan></text>`;
+
+                currentAngle += degreesPerDay + GAP_DEGREES;
             }
 
-            // Hour labels on inner and outer edges
-            const sampleDayStart = 0;
-            const sampleDayEnd = degreesPerDay;
-            for (let h = 0; h <= hourCount; h += 3) {
+            // Hour labels along the left edge
+            for (let h = 0; h <= hourCount; h += 2) {
                 const hour = hourMin + h;
                 if (hour > hourMax) continue;
-                const radius = INNER_RADIUS + (h * radiusPerHour);
-                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, radius, sampleDayStart + (sampleDayEnd - sampleDayStart) / 2, sampleDayStart + (sampleDayEnd - sampleDayStart) / 2);
-                html += `<text class="hour-label" style="font-size: 10px;"><tspan x="${CENTER_X - OUTER_RADIUS - 30}" y="${CENTER_Y}" text-anchor="end">${hour}:00</tspan></text>`;
+                const radius = innerRadius + (h * radiusPerHour);
+                const labelPos = polarToCartesian(CENTER_X, CENTER_Y, radius, 180);
+                html += `<text class="hour-label" style="font-size: 10px;"><tspan x="${labelPos.x - 25}" y="${labelPos.y}" text-anchor="end">${hour}:00</tspan></text>`;
             }
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${innerRadius - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" style="font-size: 36px;" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">Week ${weekNum}</text>`;
             html += `<text class="label" style="font-size: 14px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 25}" text-anchor="middle">${YEAR}</text>`;
 
@@ -934,6 +953,8 @@
             let html = '';
             const dayOfMonth = focusPath[3];
             const monthIndex = focusPath[1];
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             const degreesPerHour = 360 / 24;
 
@@ -942,7 +963,7 @@
                 const hourStart = (hour * degreesPerHour) + GAP_DEGREES / 2;
                 const hourEnd = ((hour + 1) * degreesPerHour) - GAP_DEGREES / 2;
 
-                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, hourStart, hourEnd);
+                const path = describeArc(CENTER_X, CENTER_Y, innerRadius, OUTER_RADIUS, hourStart, hourEnd);
                 const now = new Date();
                 const isCurrentHour = monthIndex === TODAY_MONTH && dayOfMonth === TODAY_DAY && hour === now.getHours();
                 const currentClass = isCurrentHour ? 'current-date' : '';
@@ -950,13 +971,12 @@
                 html += `<path class="segment non-clickable ${currentClass}" data-type="hour" data-hour="${hour}" d="${path}" />`;
 
                 // Hour label
-                const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
                 const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, hourStart, hourEnd);
                 const hourLabel = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
                 html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${hourLabel}</tspan></text>`;
             }
 
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${innerRadius - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
             html += `<text class="center-label" style="font-size: 32px;" x="${CENTER_X}" y="${CENTER_Y - 5}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
             html += `<text class="center-label" style="font-size: 56px;" x="${CENTER_X}" y="${CENTER_Y + 40}" text-anchor="middle">${dayOfMonth}</text>`;
 
@@ -1011,7 +1031,8 @@
 
         function applyZoomTransform() {
             const zoomGroup = document.getElementById('zoomGroup');
-            const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+            const innerRadius = getCurrentInnerRadius();
+            const midRadius = (OUTER_RADIUS + innerRadius) / 2;
 
             if (zoomLevel === 0) {
                 currentRotation = 0;
