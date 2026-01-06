@@ -16,6 +16,7 @@
             --current-date-outline: #000000;
             --ui-bg: rgba(255, 255, 255, 0.95);
             --ui-shadow: rgba(0, 0, 0, 0.2);
+            --thin-line: #cccccc;
         }
 
         [data-theme="dark"] {
@@ -28,6 +29,7 @@
             --current-date-outline: #ffffff;
             --ui-bg: rgba(60, 60, 60, 0.95);
             --ui-shadow: rgba(0, 0, 0, 0.5);
+            --thin-line: #555555;
         }
 
         * {
@@ -209,6 +211,75 @@
             color: var(--bg-primary);
         }
 
+        /* Hour Range Slider */
+        .hour-range-container {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .hour-range-track {
+            position: relative;
+            height: 6px;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+
+        .hour-range-selected {
+            position: absolute;
+            height: 100%;
+            background: var(--text-primary);
+            border-radius: 3px;
+        }
+
+        .hour-range-input {
+            position: absolute;
+            width: 100%;
+            height: 6px;
+            background: transparent;
+            pointer-events: none;
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .hour-range-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            pointer-events: all;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            cursor: pointer;
+            box-shadow: 0 2px 6px var(--ui-shadow);
+        }
+
+        .hour-range-input::-moz-range-thumb {
+            pointer-events: all;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--text-primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px var(--ui-shadow);
+        }
+
+        .hour-range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .hour-range-values {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
         /* Main Calendar */
         .calendar-container {
             width: 100%;
@@ -240,7 +311,7 @@
             stroke-width: 1.5;
         }
 
-        .segment:hover:not(.faded) {
+        .segment:hover:not(.faded):not(.non-clickable) {
             opacity: 0.8;
         }
 
@@ -256,6 +327,18 @@
         .segment.current-date {
             stroke: var(--current-date-outline);
             stroke-width: 3;
+        }
+
+        .segment.non-clickable {
+            cursor: default;
+        }
+
+        /* Thin lines for sub-divisions */
+        .thin-line {
+            stroke: var(--thin-line);
+            stroke-width: 0.5;
+            fill: none;
+            pointer-events: none;
         }
 
         /* Labels */
@@ -282,6 +365,14 @@
 
         .day-label {
             font-size: 9px;
+            font-weight: 600;
+            fill: var(--text-primary);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .hour-label {
+            font-size: 8px;
             font-weight: 600;
             fill: var(--text-primary);
             pointer-events: none;
@@ -384,6 +475,25 @@
                     <button class="toggle-btn" id="mondayBtn">Monday</button>
                 </div>
             </div>
+
+            <div class="settings-group">
+                <span class="settings-label">Hour Range (Week View)</span>
+                <div class="hour-range-container">
+                    <div class="hour-range-track">
+                        <div class="hour-range-selected" id="hourRangeSelected"></div>
+                    </div>
+                    <input type="range" min="0" max="24" value="6" class="hour-range-input" id="hourRangeMin" style="position: absolute; top: 20px;">
+                    <input type="range" min="0" max="24" value="22" class="hour-range-input" id="hourRangeMax" style="position: absolute; top: 20px;">
+                    <div class="hour-range-labels">
+                        <span>0</span>
+                        <span>6</span>
+                        <span>12</span>
+                        <span>18</span>
+                        <span>24</span>
+                    </div>
+                    <div class="hour-range-values" id="hourRangeValues">6:00 - 22:00</div>
+                </div>
+            </div>
         </div>
 
         <!-- Calendar SVG -->
@@ -404,12 +514,13 @@
         const CENTER_Y = 500;
         const OUTER_RADIUS = 400;
         const INNER_RADIUS = 280;
-        const GAP_DEGREES = 1.5; // Gap size in degrees between major segments
+        const GAP_DEGREES = 1.5;
 
         // ===== STATE =====
         let theme = 'light';
         let viewMode = 'quarter';
         let weekStart = 'sunday';
+        let hourRange = [6, 22]; // Default 6am to 10pm
         let zoomLevel = 0;
         let focusPath = [];
         let currentRotation = 0;
@@ -452,7 +563,6 @@
             return null;
         }
 
-        // Get week number for a date
         function getWeekNumber(date) {
             const jan1 = new Date(YEAR, 0, 1);
             const startDay = jan1.getDay();
@@ -467,7 +577,6 @@
             return Math.floor(daysSince / 7) + 2;
         }
 
-        // Get all days in a month with week numbers
         function getDaysInMonth(monthIndex) {
             const days = [];
             const numDays = monthDays[monthIndex];
@@ -489,11 +598,20 @@
             return days;
         }
 
-        // Get unique weeks in a month
         function getWeeksForMonth(monthIndex) {
             const days = getDaysInMonth(monthIndex);
             const weeks = [...new Set(days.map(d => d.weekNum))];
             return weeks.sort((a, b) => a - b);
+        }
+
+        function getDaysInWeek(weekNum) {
+            const days = [];
+            for (let month = 0; month < 12; month++) {
+                const monthDaysData = getDaysInMonth(month);
+                const weekDays = monthDaysData.filter(d => d.weekNum === weekNum);
+                days.push(...weekDays);
+            }
+            return days;
         }
 
         // ===== SVG HELPERS =====
@@ -537,10 +655,22 @@
         }
 
         function shouldReverseText(startAngle, endAngle) {
-            // Adjusted to account for current rotation
             const midAngle = (startAngle + endAngle) / 2 + currentRotation;
             const normalizedAngle = ((midAngle % 360) + 360) % 360;
             return normalizedAngle > 90 && normalizedAngle < 270;
+        }
+
+        function drawRadialLine(angle, innerRadius, outerRadius) {
+            const inner = polarToCartesian(CENTER_X, CENTER_Y, innerRadius, angle);
+            const outer = polarToCartesian(CENTER_X, CENTER_Y, outerRadius, angle);
+            return `M ${inner.x} ${inner.y} L ${outer.x} ${outer.y}`;
+        }
+
+        function drawArcLine(radius, startAngle, endAngle) {
+            const start = polarToCartesian(CENTER_X, CENTER_Y, radius, startAngle);
+            const end = polarToCartesian(CENTER_X, CENTER_Y, radius, endAngle);
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+            return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
         }
 
         // ===== RENDERING =====
@@ -579,8 +709,8 @@
                 const degreesPerMonth = groupAngle / group.months.length;
 
                 group.months.forEach((monthIndex, monthIdx) => {
-                    const monthStart = groupStart + (monthIdx * degreesPerMonth) + GAP_DEGREES / 2;
-                    const monthEnd = groupStart + ((monthIdx + 1) * degreesPerMonth) - GAP_DEGREES / 2;
+                    const monthStart = groupStart + (monthIdx * degreesPerMonth);
+                    const monthEnd = groupStart + ((monthIdx + 1) * degreesPerMonth);
 
                     const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, monthStart, monthEnd);
 
@@ -594,6 +724,11 @@
                     html += `<path class="segment ${currentClass}" data-type="month" data-index="${monthIndex}" d="${path}" />`;
                     html += `<defs><path id="${textPathId}" d="${textPath}" fill="none"/></defs>`;
                     html += `<text class="label"><textPath href="#${textPathId}" startOffset="50%" text-anchor="middle">${monthAbbrev[monthIndex]}</textPath></text>`;
+
+                    // Add thin line between months (except at group boundaries)
+                    if (monthIdx > 0) {
+                        html += `<path class="thin-line" d="${drawRadialLine(monthStart, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                    }
                 });
             });
 
@@ -614,7 +749,7 @@
             const totalAngle = viewMode === 'quarter' ? 90 : 120;
             const startAngle = group.startAngle;
 
-            // Context months (faded)
+            // Context groups (faded)
             const numGroups = Object.keys(groups).length;
             const degreesPerGroup = 360 / numGroups;
             Object.values(groups).forEach((g, idx) => {
@@ -627,7 +762,7 @@
                 }
             });
 
-            // Focused group with week details
+            // Focused group with months and week lines
             const degreesPerMonth = (totalAngle - (GAP_DEGREES * numMonths)) / numMonths;
             group.months.forEach((monthIndex, idx) => {
                 const monthStart = startAngle + (idx * (degreesPerMonth + GAP_DEGREES)) + GAP_DEGREES / 2;
@@ -635,15 +770,16 @@
                 const weeks = getWeeksForMonth(monthIndex);
                 const degreesPerWeek = degreesPerMonth / weeks.length;
 
+                // Draw month as single segment
+                const monthPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, monthStart, monthEnd);
+                html += `<path class="segment" data-type="month" data-index="${monthIndex}" d="${monthPath}" />`;
+
+                // Add thin lines between weeks
                 weeks.forEach((weekNum, weekIdx) => {
-                    const weekStart = monthStart + (weekIdx * degreesPerWeek);
-                    const weekEnd = weekStart + degreesPerWeek;
-
-                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, weekStart, weekEnd);
-                    const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, weekStart, weekEnd);
-
-                    html += `<path class="segment" data-type="week" data-month="${monthIndex}" data-week="${weekNum}" d="${path}" />`;
-                    html += `<text class="week-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${weekNum}</tspan></text>`;
+                    if (weekIdx > 0) {
+                        const lineAngle = monthStart + (weekIdx * degreesPerWeek);
+                        html += `<path class="thin-line" d="${drawRadialLine(lineAngle, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                    }
                 });
 
                 const textPathId = `month-path-${monthIndex}`;
@@ -668,7 +804,6 @@
             const weeks = getWeeksForMonth(monthIndex);
             const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
 
-            // Full circle divided into days with gaps between weeks
             const totalDays = days.length;
             const numWeeks = weeks.length;
             const totalAngle = 360 - (GAP_DEGREES * numWeeks);
@@ -694,18 +829,28 @@
                     currentAngle += GAP_DEGREES;
                 }
 
+                const weekStart = currentAngle;
+                const weekEnd = currentAngle + degreesForWeek;
+
+                // Draw week as single segment
+                const weekPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, weekStart, weekEnd);
+                html += `<path class="segment non-clickable" data-type="week-bg" data-week="${weekNum}" d="${weekPath}" />`;
+
                 weekDays.forEach((dayData, dayIdx) => {
                     const dayStart = currentAngle;
                     const dayEnd = currentAngle + degreesPerDay;
 
-                    const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, dayStart, dayEnd);
                     const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, dayStart, dayEnd);
 
                     const isCurrentDate = dayData.monthIndex === TODAY_MONTH && dayData.day === TODAY_DAY;
                     const currentClass = isCurrentDate ? 'current-date' : '';
 
-                    html += `<path class="segment ${currentClass}" data-type="day" data-day="${dayData.day}" d="${path}" />`;
-                    html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayData.day}</tspan></text>`;
+                    html += `<text class="day-label ${currentClass}"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayData.day}</tspan></text>`;
+
+                    // Add thin line between days (except first day of week)
+                    if (dayIdx > 0) {
+                        html += `<path class="thin-line" d="${drawRadialLine(dayStart, INNER_RADIUS, OUTER_RADIUS)}" />`;
+                    }
 
                     currentAngle += degreesPerDay;
                 });
@@ -720,15 +865,101 @@
 
         function renderWeekView() {
             let html = '';
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
-            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Week</text>`;
+            const weekNum = focusPath[2];
+            const weekDays = getDaysInWeek(weekNum);
+
+            if (weekDays.length === 0) {
+                html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
+                html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Week ${weekNum}</text>`;
+                return html;
+            }
+
+            const degreesPerDay = (360 - (GAP_DEGREES * 7)) / 7;
+            const [hourMin, hourMax] = hourRange;
+            const hourCount = hourMax - hourMin;
+            const radiusRange = OUTER_RADIUS - INNER_RADIUS;
+            const radiusPerHour = radiusRange / hourCount;
+
+            // Render each day segment
+            let currentAngle = 0;
+            for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+                const dayStart = currentAngle + (dayIdx > 0 ? GAP_DEGREES / 2 : 0);
+                const dayEnd = currentAngle + degreesPerDay + (dayIdx < 6 ? GAP_DEGREES / 2 : 0);
+                currentAngle += degreesPerDay + GAP_DEGREES;
+
+                const dayData = weekDays[dayIdx];
+
+                // Find which day of week this segment represents
+                const targetDayOfWeek = (weekStart === 'sunday' ? dayIdx : (dayIdx + 1) % 7);
+                const actualDayData = weekDays.find(d => d.dayOfWeek === targetDayOfWeek) || null;
+
+                // Draw day segment background
+                const dayPath = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, dayStart, dayEnd);
+                const isCurrentDay = actualDayData && actualDayData.monthIndex === TODAY_MONTH && actualDayData.day === TODAY_DAY;
+                const currentClass = isCurrentDay ? 'current-date' : '';
+                html += `<path class="segment non-clickable ${currentClass}" data-type="day-bg" data-day="${dayIdx}" d="${dayPath}" />`;
+
+                // Add thin lines between hours (concentric arcs)
+                for (let h = 1; h < hourCount; h++) {
+                    const radius = INNER_RADIUS + (h * radiusPerHour);
+                    html += `<path class="thin-line" d="${drawArcLine(radius, dayStart, dayEnd)}" />`;
+                }
+
+                // Day label
+                const labelRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, labelRadius, dayStart, dayEnd);
+                const dayLabel = actualDayData ? `${dayNames[actualDayData.dayOfWeek]} ${actualDayData.day}` : dayNames[targetDayOfWeek];
+                html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${dayLabel}</tspan></text>`;
+            }
+
+            // Hour labels on inner and outer edges
+            const sampleDayStart = 0;
+            const sampleDayEnd = degreesPerDay;
+            for (let h = 0; h <= hourCount; h += 3) {
+                const hour = hourMin + h;
+                if (hour > hourMax) continue;
+                const radius = INNER_RADIUS + (h * radiusPerHour);
+                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, radius, sampleDayStart + (sampleDayEnd - sampleDayStart) / 2, sampleDayStart + (sampleDayEnd - sampleDayStart) / 2);
+                html += `<text class="hour-label" style="font-size: 10px;"><tspan x="${CENTER_X - OUTER_RADIUS - 30}" y="${CENTER_Y}" text-anchor="end">${hour}:00</tspan></text>`;
+            }
+
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<text class="center-label" style="font-size: 36px;" x="${CENTER_X}" y="${CENTER_Y + 5}" text-anchor="middle">Week ${weekNum}</text>`;
+            html += `<text class="label" style="font-size: 14px; fill: var(--text-secondary);" x="${CENTER_X}" y="${CENTER_Y + 25}" text-anchor="middle">${YEAR}</text>`;
+
             return html;
         }
 
         function renderDayView() {
             let html = '';
-            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="100" fill="var(--bg-secondary)" />`;
-            html += `<text class="center-label" x="${CENTER_X}" y="${CENTER_Y}" text-anchor="middle">Day</text>`;
+            const dayOfMonth = focusPath[3];
+            const monthIndex = focusPath[1];
+
+            const degreesPerHour = 360 / 24;
+
+            // Render 24 hour segments with gaps
+            for (let hour = 0; hour < 24; hour++) {
+                const hourStart = (hour * degreesPerHour) + GAP_DEGREES / 2;
+                const hourEnd = ((hour + 1) * degreesPerHour) - GAP_DEGREES / 2;
+
+                const path = describeArc(CENTER_X, CENTER_Y, INNER_RADIUS, OUTER_RADIUS, hourStart, hourEnd);
+                const now = new Date();
+                const isCurrentHour = monthIndex === TODAY_MONTH && dayOfMonth === TODAY_DAY && hour === now.getHours();
+                const currentClass = isCurrentHour ? 'current-date' : '';
+
+                html += `<path class="segment non-clickable ${currentClass}" data-type="hour" data-hour="${hour}" d="${path}" />`;
+
+                // Hour label
+                const midRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
+                const labelPos = getLabelPosition(CENTER_X, CENTER_Y, midRadius, hourStart, hourEnd);
+                const hourLabel = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
+                html += `<text class="day-label"><tspan x="${labelPos.x}" y="${labelPos.y}" text-anchor="middle">${hourLabel}</tspan></text>`;
+            }
+
+            html += `<circle cx="${CENTER_X}" cy="${CENTER_Y}" r="${INNER_RADIUS - 20}" fill="var(--bg-secondary)" stroke="var(--segment-border)" stroke-width="2"/>`;
+            html += `<text class="center-label" style="font-size: 32px;" x="${CENTER_X}" y="${CENTER_Y - 5}" text-anchor="middle">${monthNames[monthIndex]}</text>`;
+            html += `<text class="center-label" style="font-size: 56px;" x="${CENTER_X}" y="${CENTER_Y + 40}" text-anchor="middle">${dayOfMonth}</text>`;
+
             return html;
         }
 
@@ -744,10 +975,29 @@
                     });
                 });
             } else if (zoomLevel === 1) {
-                document.querySelectorAll('[data-type="week"]').forEach(el => {
+                document.querySelectorAll('[data-type="month"]').forEach(el => {
                     el.addEventListener('click', (e) => {
-                        const monthIndex = parseInt(e.target.dataset.month);
+                        const monthIndex = parseInt(e.target.dataset.index);
                         zoomTo(2, [focusPath[0], monthIndex]);
+                    });
+                });
+            } else if (zoomLevel === 2) {
+                document.querySelectorAll('[data-type="week-bg"]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        const weekNum = parseInt(e.target.dataset.week);
+                        zoomTo(3, [focusPath[0], focusPath[1], weekNum]);
+                    });
+                });
+            } else if (zoomLevel === 3) {
+                document.querySelectorAll('[data-type="day-bg"]').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        const dayIdx = parseInt(e.target.dataset.day);
+                        const weekDays = getDaysInWeek(focusPath[2]);
+                        const targetDayOfWeek = (weekStart === 'sunday' ? dayIdx : (dayIdx + 1) % 7);
+                        const dayData = weekDays.find(d => d.dayOfWeek === targetDayOfWeek);
+                        if (dayData) {
+                            zoomTo(4, [focusPath[0], dayData.monthIndex, focusPath[2], dayData.day]);
+                        }
                     });
                 });
             }
@@ -801,6 +1051,16 @@
                 const panY = midRadius * scale;
 
                 zoomGroup.style.transform = `translate(0, ${panY}px) rotate(${rotation}deg) scale(${scale})`;
+            } else if (zoomLevel === 3) {
+                currentRotation = 0;
+                const scale = 2.5;
+                const panY = midRadius * scale;
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
+            } else if (zoomLevel === 4) {
+                currentRotation = 0;
+                const scale = 2.5;
+                const panY = midRadius * scale;
+                zoomGroup.style.transform = `translate(0, ${panY}px) rotate(0deg) scale(${scale})`;
             }
         }
 
@@ -826,6 +1086,13 @@
             } else if (zoomLevel === 2) {
                 const monthIndex = focusPath[1];
                 document.getElementById('title').textContent = `${monthNames[monthIndex]} 2026`;
+            } else if (zoomLevel === 3) {
+                const weekNum = focusPath[2];
+                document.getElementById('title').textContent = `Week ${weekNum} - 2026`;
+            } else if (zoomLevel === 4) {
+                const monthIndex = focusPath[1];
+                const dayOfMonth = focusPath[3];
+                document.getElementById('title').textContent = `${monthNames[monthIndex]} ${dayOfMonth}, 2026`;
             }
         }
 
@@ -855,6 +1122,38 @@
             document.getElementById('mondayBtn').classList.toggle('active', start === 'monday');
 
             renderCalendar();
+        }
+
+        function updateHourRange() {
+            const min = parseInt(document.getElementById('hourRangeMin').value);
+            const max = parseInt(document.getElementById('hourRangeMax').value);
+
+            // Ensure min is always less than max
+            if (min >= max) {
+                if (event.target.id === 'hourRangeMin') {
+                    document.getElementById('hourRangeMin').value = max - 1;
+                } else {
+                    document.getElementById('hourRangeMax').value = min + 1;
+                }
+                return;
+            }
+
+            hourRange = [min, max];
+
+            // Update visual indicator
+            const percent1 = (min / 24) * 100;
+            const percent2 = (max / 24) * 100;
+            const selected = document.getElementById('hourRangeSelected');
+            selected.style.left = percent1 + '%';
+            selected.style.width = (percent2 - percent1) + '%';
+
+            // Update values display
+            document.getElementById('hourRangeValues').textContent = `${min}:00 - ${max}:00`;
+
+            // Re-render if in week view
+            if (zoomLevel === 3) {
+                renderCalendar();
+            }
         }
 
         function getCurrentDateSegments() {
@@ -889,6 +1188,9 @@
         document.getElementById('sundayBtn').addEventListener('click', () => switchWeekStart('sunday'));
         document.getElementById('mondayBtn').addEventListener('click', () => switchWeekStart('monday'));
 
+        document.getElementById('hourRangeMin').addEventListener('input', updateHourRange);
+        document.getElementById('hourRangeMax').addEventListener('input', updateHourRange);
+
         document.querySelectorAll('.zoom-level').forEach(el => {
             el.addEventListener('click', () => {
                 const targetLevel = parseInt(el.dataset.level);
@@ -910,6 +1212,9 @@
                 }
             });
         });
+
+        // Initialize hour range slider
+        updateHourRange();
 
         // Initialize
         renderCalendar();
